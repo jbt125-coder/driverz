@@ -115,7 +115,7 @@ return;
 }
 leaderboard.slice(0,5).forEach((entry,i)=>{
 let ey = y+34+i*20;
-let medal = [‘🥇’,‘🥈’,‘🥉’,‘4.’,‘5.’][i];
+let medal = [‘1ST’,‘2ND’,‘3RD’,‘4TH’,‘5TH’][i];
 let nameColor = i===0?C.gold:i===1?’#c0c0c0’:i===2?’#cd7f32’:C.white;
 // Highlight player’s own score
 if(entry.name.toUpperCase()===playerName.toUpperCase()){
@@ -1136,7 +1136,7 @@ drawOutlineText(names[round-1],W/2,H*0.3,C.gold,C.black,28);
 drawOutlineText(‘ROUND ‘+round+’ OF 4’,W/2,H*0.42,C.white,C.black,18);
 drawOutlineText(ballCount+’ BALLS IN THE BUCKET’,W/2,H*0.54,C.yellow,C.black,15);
 if(round===3){
-drawOutlineText(‘⚡ HALFTIME BONUS AFTER THIS! ⚡’,W/2,H*0.65,C.neonGreen,C.black,13);
+drawOutlineText(’** HALFTIME BONUS AFTER THIS! **’,W/2,H*0.65,C.neonGreen,C.black,13);
 }
 let tapPulse=Math.floor(frameCount/20)%2;
 if(tapPulse) drawOutlineText(‘TAP TO TEE OFF’,W/2,H*0.78,C.white,C.black,16);
@@ -1200,7 +1200,7 @@ ctx.fillStyle=‘rgba(0,20,0,0.90)’; ctx.fillRect(0,0,W,H);
 let pulse=0.9+0.1*Math.sin(frameCount*0.1);
 ctx.save(); ctx.translate(W/2,H*0.2); ctx.scale(pulse,pulse);
 ctx.shadowColor=C.neonGreen; ctx.shadowBlur=20;
-drawOutlineText(‘⛳ HALFTIME!’,0,0,C.gold,C.black,32);
+drawOutlineText(‘HALFTIME!’,0,0,C.gold,C.black,32);
 ctx.shadowBlur=0;
 ctx.restore();
 drawOutlineText(‘PUTTING FRENZY!’,W/2,H*0.34,C.neonGreen,C.black,14);
@@ -1839,6 +1839,10 @@ ballsLeft–;
 launchBall();
 swingState=‘windup’;
 swingT=0;
+if(ballsLeft<=0){
+// All balls used — end round after last ball lands
+setTimeout(()=>{ if(state===‘playing’) endRound(); }, 1000);
+}
 }
 
 function updateSwing(){
@@ -2056,10 +2060,10 @@ poopEffects.forEach(p=>{
 drawHUD();
 drawFloatTexts();
 
-// Balls left warning
-if(ballsLeft<=5 && ballsLeft>0){
+// Low balls warning
+if(ballsLeft>0 && ballsLeft<=5){
   let wp=Math.floor(frameCount/15)%2;
-  if(wp) drawOutlineText('⚠️ '+ballsLeft+' BALLS LEFT!',W/2,H*0.55,C.red,C.black,16);
+  if(wp) drawOutlineText('!! '+ballsLeft+' BALLS LEFT!',W/2,H*0.55,C.red,C.black,16);
 }
 ```
 
