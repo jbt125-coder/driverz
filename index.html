@@ -60,10 +60,10 @@ putt:’#55aa55’, puttDark:’#337733’, puttBorder:’#222’
 
 // ── DREAMLO LEADERBOARD ──
 // ⬇️  SWAP THESE TWO LINES when you get your dreamlo keys
-const DREAMLO_PUBLIC  = ‘YOUR_PUBLIC_KEY_HERE’;
-const DREAMLO_PRIVATE = ‘YOUR_PRIVATE_KEY_HERE’;
+const DREAMLO_PUBLIC  = ‘69c99d598f40bc2f60aa7601’;
+const DREAMLO_PRIVATE = ‘URYC6_EzkUKdoeQaImMo1wggKaJvsRnEyg35TFLTiCVA’;
 const DREAMLO_URL     = ‘https://dreamlo.com/lb/’;
-const GAME_URL        = ‘https://jbt125-coder.github.io/driverz.html’; // update path as needed
+const GAME_URL        = ‘https://jbt125-coder.github.io/driverz/’;
 
 let localHighScore = parseInt(localStorage.getItem(‘driverz_hs’)||‘0’);
 let leaderboard = []; // [{name, score}]
@@ -71,24 +71,12 @@ let leaderboardStatus = ‘idle’; // idle, loading, done, error
 let scoreSubmitted = false;
 
 function submitScore(name, score){
-if(DREAMLO_PRIVATE===‘YOUR_PRIVATE_KEY_HERE’) return; // skip if not configured
 let url = DREAMLO_URL + DREAMLO_PRIVATE + ‘/add/’ +
 encodeURIComponent(name) + ‘/’ + score;
 fetch(url).catch(()=>{}); // fire and forget
 }
 
 function fetchLeaderboard(){
-if(DREAMLO_PUBLIC===‘YOUR_PUBLIC_KEY_HERE’){
-// Use fake demo data so the screen looks good
-leaderboard=[
-{name:‘PRO GOLFER’, score:280},
-{name:‘ACE’, score:240},
-{name:‘EAGLE EYE’, score:210},
-{name:‘BIRDIE’, score:185},
-{name:‘PAR PLAYER’, score:160},
-];
-leaderboardStatus=‘done’; return;
-}
 leaderboardStatus=‘loading’;
 fetch(DREAMLO_URL + DREAMLO_PUBLIC + ‘/json/5’)
 .then(r=>r.json())
@@ -2133,10 +2121,9 @@ doSwing();
 } else if(state===‘roundend’){
 round++;
 if(round===3){
-// After round 2 => halftime
 state=‘halftime_intro’;
 } else if(round>4){
-state=‘gameover’;
+onGameOver();
 } else {
 state=‘pregame’;
 }
@@ -2146,10 +2133,20 @@ state=‘halftime’;
 } else if(state===‘halftime’){
 // swipe handled separately below
 } else if(state===‘halftime_result’){
-round=3; // continue to round 3
+round=3;
 state=‘pregame’;
 } else if(state===‘gameover’){
+let rect=canvas.getBoundingClientRect();
+let cx=(clientX-rect.left)*(W/rect.width);
+let cy=(clientY-rect.top)*(H/rect.height);
+// SMS challenge button
+if(cx>=W*0.06&&cx<=W*0.94&&cy>=H*0.785&&cy<=H*0.785+40){
+sendSMSChallenge();
+return;
+}
+// Anywhere else = play again
 round=1; totalScore=0; roundScore=0; roundStartScore=0;
+scoreSubmitted=false;
 state=‘title’;
 }
 }
@@ -2195,6 +2192,9 @@ if(fromLowerHalf && Math.hypot(dx,dy)>10){
 doSwipeputt(Math.atan2(dy,dx), Math.hypot(dx,dy));
 }
 });
+
+// Fetch leaderboard on startup
+fetchLeaderboard();
 
 requestAnimationFrame(loop);
 
