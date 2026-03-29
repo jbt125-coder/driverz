@@ -21,16 +21,16 @@ const ctx = canvas.getContext('2d');
 const nameInput = document.getElementById('nameInput');
 
 // Wire up the hidden input so typing flows into playerName
-nameInput.addEventListener(‘input’, ()=>{
+nameInput.addEventListener('input', ()=>{
 playerName = nameInput.value.toUpperCase().slice(0,12);
 });
-nameInput.addEventListener(‘keydown’, e=>{
-if(e.key===‘Enter’||e.key===‘Go’||e.key===‘Done’){
+nameInput.addEventListener('keydown', e=>{
+if(e.key==='Enter'||e.key==='Go'||e.key==='Done'){
 nameInput.blur();
 nameInputActive=false;
 }
 });
-nameInput.addEventListener(‘blur’, ()=>{
+nameInput.addEventListener('blur', ()=>{
 nameInputActive=false;
 });
 
@@ -42,103 +42,103 @@ canvas.height = H;
 
 // ── PALETTE ──
 const C = {
-sky1:’#87CEEB’, sky2:’#4a9fd4’,
-grass:’#3a7d2c’, grassDark:’#2e6422’, grassLight:’#4a9e38’,
-dirt:’#8B6914’, dirtLight:’#a07c1e’,
-red:’#e63c3c’, yellow:’#f5c518’, green:’#22bb55’, blue:’#2255dd’,
-white:’#fff’, black:’#111’, gray:’#888’, darkGray:’#444’,
-tan:’#d4a96a’, skinLight:’#f5c8a0’, skinDark:’#c8926a’,
-brown:’#7a3e1e’, darkBrown:’#4a2010’,
-orange:’#f07020’, pink:’#e86090’, purple:’#8844cc’,
-neonGreen:’#00ff88’, gold:’#ffd700’,
-cartYellow:’#e8c040’, cartGray:’#999’,
-birdWhite:’#eee’, birdGray:’#bbb’,
-foxOrange:’#d4601a’, foxWhite:’#f0e8d8’,
-frogGreen:’#44aa44’, frogDark:’#228822’,
-putt:’#55aa55’, puttDark:’#337733’, puttBorder:’#222’
+sky1:'#87CEEB', sky2:'#4a9fd4',
+grass:'#3a7d2c', grassDark:'#2e6422', grassLight:'#4a9e38',
+dirt:'#8B6914', dirtLight:'#a07c1e',
+red:'#e63c3c', yellow:'#f5c518', green:'#22bb55', blue:'#2255dd',
+white:'#fff', black:'#111', gray:'#888', darkGray:'#444',
+tan:'#d4a96a', skinLight:'#f5c8a0', skinDark:'#c8926a',
+brown:'#7a3e1e', darkBrown:'#4a2010',
+orange:'#f07020', pink:'#e86090', purple:'#8844cc',
+neonGreen:'#00ff88', gold:'#ffd700',
+cartYellow:'#e8c040', cartGray:'#999',
+birdWhite:'#eee', birdGray:'#bbb',
+foxOrange:'#d4601a', foxWhite:'#f0e8d8',
+frogGreen:'#44aa44', frogDark:'#228822',
+putt:'#55aa55', puttDark:'#337733', puttBorder:'#222'
 };
 
 // ── DREAMLO LEADERBOARD ──
 // ⬇️  SWAP THESE TWO LINES when you get your dreamlo keys
-const DREAMLO_PUBLIC  = ‘69c99d598f40bc2f60aa7601’;
-const DREAMLO_PRIVATE = ‘URYC6_EzkUKdoeQaImMo1wggKaJvsRnEyg35TFLTiCVA’;
-const DREAMLO_URL     = ‘https://dreamlo.com/lb/’;
-const GAME_URL        = ‘https://jbt125-coder.github.io/driverz/’;
+const DREAMLO_PUBLIC  = '69c99d598f40bc2f60aa7601';
+const DREAMLO_PRIVATE = 'URYC6_EzkUKdoeQaImMo1wggKaJvsRnEyg35TFLTiCVA';
+const DREAMLO_URL     = 'https://dreamlo.com/lb/';
+const GAME_URL        = 'https://jbt125-coder.github.io/driverz/';
 
-let localHighScore = parseInt(localStorage.getItem(‘driverz_hs’)||‘0’);
+let localHighScore = parseInt(localStorage.getItem('driverz_hs')||'0');
 let leaderboard = []; // [{name, score}]
-let leaderboardStatus = ‘idle’; // idle, loading, done, error
+let leaderboardStatus = 'idle'; // idle, loading, done, error
 let scoreSubmitted = false;
 
 function submitScore(name, score){
-let url = DREAMLO_URL + DREAMLO_PRIVATE + ‘/add/’ +
-encodeURIComponent(name) + ‘/’ + score;
+let url = DREAMLO_URL + DREAMLO_PRIVATE + '/add/' +
+encodeURIComponent(name) + '/' + score;
 fetch(url).catch(()=>{}); // fire and forget
 }
 
 function fetchLeaderboard(){
-leaderboardStatus=‘loading’;
-fetch(DREAMLO_URL + DREAMLO_PUBLIC + ‘/json/5’)
+leaderboardStatus='loading';
+fetch(DREAMLO_URL + DREAMLO_PUBLIC + '/json/5')
 .then(r=>r.json())
 .then(data=>{
 let entries = data?.dreamlo?.leaderboard?.entry;
-if(!entries) { leaderboardStatus=‘done’; leaderboard=[]; return; }
+if(!entries) { leaderboardStatus='done'; leaderboard=[]; return; }
 if(!Array.isArray(entries)) entries=[entries];
 leaderboard = entries.map(e=>({name:String(e.name), score:parseInt(e.score)}));
-leaderboardStatus=‘done’;
+leaderboardStatus='done';
 })
-.catch(()=>{ leaderboardStatus=‘error’; leaderboard=[]; });
+.catch(()=>{ leaderboardStatus='error'; leaderboard=[]; });
 }
 
 function sendSMSChallenge(){
-let name = playerName.trim()||‘A friend’;
-let msg = name+’ scored ‘+totalScore+’ pts on DRIVERZ! Can you beat it? ’+GAME_URL;
-window.location.href = ‘sms:?&body=’+encodeURIComponent(msg);
+let name = playerName.trim()||'A friend';
+let msg = name+' scored '+totalScore+' pts on DRIVERZ! Can you beat it? '+GAME_URL;
+window.location.href = 'sms:?&body='+encodeURIComponent(msg);
 }
 
 function drawLeaderboard(x, y, w, h, title){
 // Panel
-ctx.fillStyle=‘rgba(0,10,0,0.82)’;
+ctx.fillStyle='rgba(0,10,0,0.82)';
 ctx.strokeStyle=C.gold; ctx.lineWidth=2;
 ctx.fillRect(px(x),py(y),w,h);
 ctx.strokeRect(px(x),py(y),w,h);
 drawOutlineText(title, x+w/2, y+14, C.gold, C.black, 11);
 ctx.fillStyle=C.gold; ctx.fillRect(px(x+8),py(y+22),w-16,1);
 
-if(leaderboardStatus===‘loading’){
-drawOutlineText(‘LOADING…’, x+w/2, y+h/2, C.gray, C.black, 10);
+if(leaderboardStatus==='loading'){
+drawOutlineText('LOADING…', x+w/2, y+h/2, C.gray, C.black, 10);
 return;
 }
-if(leaderboardStatus===‘error’||leaderboard.length===0){
-drawOutlineText(‘NO SCORES YET’, x+w/2, y+h/2, C.gray, C.black, 10);
+if(leaderboardStatus==='error'||leaderboard.length===0){
+drawOutlineText('NO SCORES YET', x+w/2, y+h/2, C.gray, C.black, 10);
 return;
 }
 leaderboard.slice(0,5).forEach((entry,i)=>{
 let ey = y+34+i*20;
-let medal = [‘1ST’,‘2ND’,‘3RD’,‘4TH’,‘5TH’][i];
-let nameColor = i===0?C.gold:i===1?’#c0c0c0’:i===2?’#cd7f32’:C.white;
-// Highlight player’s own score
+let medal = ['1ST','2ND','3RD','4TH','5TH'][i];
+let nameColor = i===0?C.gold:i===1?'#c0c0c0':i===2?'#cd7f32':C.white;
+// Highlight player's own score
 if(entry.name.toUpperCase()===playerName.toUpperCase()){
-ctx.fillStyle=‘rgba(0,255,136,0.15)’;
+ctx.fillStyle='rgba(0,255,136,0.15)';
 ctx.fillRect(px(x+4),py(ey-9),w-8,18);
 }
 drawText(medal, x+16, ey, nameColor, 10);
 // Truncate long names
-let n = entry.name.length>10 ? entry.name.slice(0,9)+’.’ : entry.name;
-drawText(n.toUpperCase(), x+28, ey, nameColor, 10, ‘left’);
-drawText(entry.score, x+w-8, ey, nameColor, 10, ‘right’);
+let n = entry.name.length>10 ? entry.name.slice(0,9)+'.' : entry.name;
+drawText(n.toUpperCase(), x+28, ey, nameColor, 10, 'left');
+drawText(entry.score, x+w-8, ey, nameColor, 10, 'right');
 });
 // Local high score footer
-drawText(’LOCAL BEST: ’+localHighScore, x+w/2, y+h-10, C.neonGreen, 9);
+drawText('LOCAL BEST: '+localHighScore, x+w/2, y+h-10, C.neonGreen, 9);
 }
-let state = ‘title’; // title, pregame, playing, halftime_intro, halftime, halftime_result, roundend, gameover
-let playerName = ‘’;
+let state = 'title'; // title, pregame, playing, halftime_intro, halftime, halftime_result, roundend, gameover
+let playerName = '';
 let nameInputActive = false; // is name box focused
 let poopEffects = [];
 
 // Title screen demo animation
 let titleDemo = {
-swingT: 0, swingPhase: ‘idle’, idleTimer: 120,
+swingT: 0, swingPhase: 'idle', idleTimer: 120,
 balls: [],   // {x,y,vx,vy,t,tx,ty,hit,color}
 targets: [   // title screen targets to aim at
 {x:W*0.20, y:H*0.52, color:C.red,    r:14},
@@ -167,7 +167,7 @@ let frogOnRange = null;
 let foxOnRange = null;
 let cartAnim = {x:W+60, y:0, active:false, timer:0, dir:-1};
 let npcLeft = null, npcRight = null;
-let npcTypes = [‘pro’,‘girl’,‘nerd’,‘doc’];
+let npcTypes = ['pro','girl','nerd','doc'];
 let npcPool = [];
 let frameCount = 0;
 
@@ -175,7 +175,7 @@ let frameCount = 0;
 let aimer = {x:W/2, y:H*0.38, vx:1.2, vy:0.8, speed:1.2};
 
 // swing state
-let swingState = ‘idle’; // idle, windup, swing, follow
+let swingState = 'idle'; // idle, windup, swing, follow
 let swingT = 0;
 let ballFlight = null; // {x,y,tx,ty,t,score,hit}
 
@@ -205,21 +205,21 @@ balls: [] // rolling balls on course
 // 5 targets: 2 red, 1 yellow pair (left/right), 1 green, 1 blue
 const TARGETS = [
 // Red — closest, bottom of range
-{x:W*0.32, y:H*0.68, color:C.red,    flag:‘R’, pts:1,  r:18, label:‘RED’},
-{x:W*0.68, y:H*0.68, color:C.red,    flag:‘R’, pts:1,  r:18, label:‘RED’},
+{x:W*0.32, y:H*0.68, color:C.red,    flag:'R', pts:1,  r:18, label:'RED'},
+{x:W*0.68, y:H*0.68, color:C.red,    flag:'R', pts:1,  r:18, label:'RED'},
 // Yellow — mid range
-{x:W*0.22, y:H*0.60, color:C.yellow, flag:‘Y’, pts:2,  r:16, label:‘YLW’},
-{x:W*0.78, y:H*0.60, color:C.yellow, flag:‘Y’, pts:2,  r:16, label:‘YLW’},
+{x:W*0.22, y:H*0.60, color:C.yellow, flag:'Y', pts:2,  r:16, label:'YLW'},
+{x:W*0.78, y:H*0.60, color:C.yellow, flag:'Y', pts:2,  r:16, label:'YLW'},
 // Green — farther back
-{x:W*0.50, y:H*0.54, color:C.green,  flag:‘G’, pts:3,  r:14, label:‘GRN’},
+{x:W*0.50, y:H*0.54, color:C.green,  flag:'G', pts:3,  r:14, label:'GRN'},
 // Blue — farthest back, near horizon
-{x:W*0.30, y:H*0.50, color:C.blue,   flag:‘B’, pts:5,  r:12, label:‘BLU’},
-{x:W*0.70, y:H*0.50, color:C.blue,   flag:‘B’, pts:5,  r:12, label:‘BLU’},
+{x:W*0.30, y:H*0.50, color:C.blue,   flag:'B', pts:5,  r:12, label:'BLU'},
+{x:W*0.70, y:H*0.50, color:C.blue,   flag:'B', pts:5,  r:12, label:'BLU'},
 ];
 
 // ── NPC DEFINITIONS ──
 function makeNPC(type, side) {
-let x = side === ‘left’ ? W*0.12 : W*0.88;
+let x = side === 'left' ? W*0.12 : W*0.88;
 return {type, x, y:H*0.78, side, swingT:0, swinging:false, swingTimer: 60 + Math.random()*180, frame:0};
 }
 
@@ -252,15 +252,15 @@ ctx.fill();
 function drawText(txt,x,y,color,size,align){
 ctx.fillStyle=color||C.white;
 ctx.font=`bold ${size||14}px monospace`;
-ctx.textAlign=align||‘center’;
-ctx.textBaseline=‘middle’;
+ctx.textAlign=align||'center';
+ctx.textBaseline='middle';
 ctx.fillText(txt,px(x),py(y));
 }
 
 function drawOutlineText(txt,x,y,color,outline,size,align){
 ctx.font=`bold ${size||14}px monospace`;
-ctx.textAlign=align||‘center’;
-ctx.textBaseline=‘middle’;
+ctx.textAlign=align||'center';
+ctx.textBaseline='middle';
 ctx.strokeStyle=outline||C.black;
 ctx.lineWidth=3;
 ctx.strokeText(txt,px(x),py(y));
@@ -272,9 +272,9 @@ ctx.fillText(txt,px(x),py(y));
 function drawRange(){
 // ── Sky: light blue top to pale horizon
 let sky=ctx.createLinearGradient(0,0,0,H*0.52);
-sky.addColorStop(0,’#b8dff0’);
-sky.addColorStop(0.5,’#ceeaf8’);
-sky.addColorStop(1,’#dff2fb’);
+sky.addColorStop(0,'#b8dff0');
+sky.addColorStop(0.5,'#ceeaf8');
+sky.addColorStop(1,'#dff2fb');
 ctx.fillStyle=sky;
 ctx.fillRect(0,0,W,H*0.52);
 
@@ -287,25 +287,25 @@ drawFlatCloud(W*0.85, H*0.12, 34, 10);
 drawSmoothMountains(
 [{x:W*0.10,h:H*0.17},{x:W*0.28,h:H*0.24},{x:W*0.50,h:H*0.28},
 {x:W*0.72,h:H*0.22},{x:W*0.90,h:H*0.16}],
-H*0.42, ‘#8ab4c8’, ‘#a8ccdc’
+H*0.42, '#8ab4c8', '#a8ccdc'
 );
 
 // ── Mid mountains (teal-blue, slightly in front)
 drawSmoothMountains(
 [{x:W*0.0,h:H*0.10},{x:W*0.18,h:H*0.16},{x:W*0.38,h:H*0.20},
 {x:W*0.58,h:H*0.18},{x:W*0.78,h:H*0.14},{x:W*1.0,h:H*0.09}],
-H*0.46, ‘#7aaa9e’, ‘#90bfb4’
+H*0.46, '#7aaa9e', '#90bfb4'
 );
 
 // ── Back rolling hill (dark green)
-drawRollingHill(H*0.48, H*0.10, ‘#4a7a3a’);
+drawRollingHill(H*0.48, H*0.10, '#4a7a3a');
 
 // ── Mid rolling hill (bright green)
-drawRollingHill(H*0.53, H*0.08, ‘#5a9a44’);
+drawRollingHill(H*0.53, H*0.08, '#5a9a44');
 
 // ── Fairway grass — perspective strips from horizon to tee
 let horizonY = H*0.52;
-let grassColors = [’#5aaa48’,’#52983e’,’#5aaa48’,’#4e9038’,’#56a042’,’#4e9038’,’#52983e’,’#5aaa48’];
+let grassColors = ['#5aaa48','#52983e','#5aaa48','#4e9038','#56a042','#4e9038','#52983e','#5aaa48'];
 for(let i=0;i<8;i++){
 let y0 = horizonY + i*(H*0.30/8);
 let y1 = horizonY + (i+1)*(H*0.30/8);
@@ -314,7 +314,7 @@ ctx.fillRect(0, py(y0), W, py(y1)-py(y0)+1);
 }
 
 // ── Horizon shimmer line
-ctx.fillStyle=’#6abf52’;
+ctx.fillStyle='#6abf52';
 for(let xi=0;xi<W;xi+=3){
 let h2=2+Math.sin(frameCount*0.04+xi*0.25)*1.5;
 ctx.fillRect(xi, py(horizonY-h2), 2, h2+1);
@@ -327,24 +327,24 @@ let treeXs=[0.04,0.10,0.16,0.83,0.88,0.93,0.97];
 treeXs.forEach((xf,i)=>drawPineTree(W*xf, treeYBase, treeSizes[i%treeSizes.length]));
 
 // ── Distance yardage markers
-drawYardagePost(W*0.10, H*0.68, ‘50’);
-drawYardagePost(W*0.90, H*0.68, ‘50’);
-drawYardagePost(W*0.08, H*0.60, ‘100’);
-drawYardagePost(W*0.92, H*0.60, ‘100’);
-drawYardagePost(W*0.06, H*0.53, ‘150’);
-drawYardagePost(W*0.94, H*0.53, ‘150’);
+drawYardagePost(W*0.10, H*0.68, '50');
+drawYardagePost(W*0.90, H*0.68, '50');
+drawYardagePost(W*0.08, H*0.60, '100');
+drawYardagePost(W*0.92, H*0.60, '100');
+drawYardagePost(W*0.06, H*0.53, '150');
+drawYardagePost(W*0.94, H*0.53, '150');
 
 // ── Tee mat
 let matY=H*0.83;
-ctx.fillStyle=’#2a4a1e’;
+ctx.fillStyle='#2a4a1e';
 ctx.fillRect(W*0.25,matY,W*0.5,H*0.04);
-ctx.fillStyle=’#1a3a0e’;
+ctx.fillStyle='#1a3a0e';
 ctx.fillRect(W*0.35,matY+2,W*0.3,H*0.04-4);
 
 // ── Ground below tee
-ctx.fillStyle=’#2a1a08’;
+ctx.fillStyle='#2a1a08';
 ctx.fillRect(0,H*0.87,W,H*0.13);
-ctx.fillStyle=’#1a1208’;
+ctx.fillStyle='#1a1208';
 for(let xi=0;xi<W;xi+=20){ ctx.fillRect(xi,H*0.87,10,H*0.03); }
 }
 
@@ -404,7 +404,7 @@ ctx.fill();
 // Flat wispy cloud (like reference — elongated ovals)
 function drawFlatCloud(x,y,w,h){
 ctx.globalAlpha=0.88;
-ctx.fillStyle=’#ffffff’;
+ctx.fillStyle='#ffffff';
 ctx.beginPath(); ctx.ellipse(px(x),py(y),w,h,0,0,Math.PI*2); ctx.fill();
 ctx.beginPath(); ctx.ellipse(px(x+w*0.4),py(y+h*0.2),w*0.6,h*0.7,0,0,Math.PI*2); ctx.fill();
 ctx.beginPath(); ctx.ellipse(px(x-w*0.35),py(y+h*0.25),w*0.55,h*0.65,0,0,Math.PI*2); ctx.fill();
@@ -413,7 +413,7 @@ ctx.globalAlpha=1;
 
 // Pine/fir tree silhouette (like reference)
 function drawPineTree(x,y,size){
-ctx.fillStyle=’#2d5a28’;
+ctx.fillStyle='#2d5a28';
 // Three triangle tiers
 for(let tier=0;tier<3;tier++){
 let tw=size*(1-tier*0.25);
@@ -426,7 +426,7 @@ ctx.closePath();
 ctx.fill();
 }
 // Trunk
-ctx.fillStyle=’#4a2a10’;
+ctx.fillStyle='#4a2a10';
 ctx.fillRect(px(x-size*0.12),py(y),Math.ceil(size*0.24),size*0.4);
 }
 
@@ -451,9 +451,9 @@ drawPixelCircle(x,y-r*1.2,r*0.6,C.grassLight);
 function drawYardagePost(x,y,label){
 ctx.fillStyle=C.white;
 ctx.fillRect(px(x-1),py(y),2,12);
-ctx.fillStyle=’#3355cc’;
+ctx.fillStyle='#3355cc';
 ctx.fillRect(px(x-8),py(y-10),16,10);
-drawText(label,x,y-5,’#fff’,7);
+drawText(label,x,y-5,'#fff',7);
 }
 
 // ── DRAW TARGETS ──
@@ -480,7 +480,7 @@ ctx.lineTo(px(t.x+10),py(t.y-t.r-10));
 ctx.lineTo(px(t.x+2),py(t.y-t.r-6));
 ctx.fill();
 // Points label
-drawText(t.pts+‘pt’,t.x,t.y+t.r+9,t.color,9);
+drawText(t.pts+'pt',t.x,t.y+t.r+9,t.color,9);
 });
 }
 
@@ -490,7 +490,7 @@ let ax=aimer.x, ay=aimer.y;
 let pulse=0.6+0.4*Math.sin(frameCount*0.12);
 let r=12+4*pulse;
 ctx.globalAlpha=0.7*pulse;
-ctx.strokeStyle=’#fff’;
+ctx.strokeStyle='#fff';
 ctx.lineWidth=2;
 ctx.beginPath(); ctx.arc(px(ax),py(ay),r,0,Math.PI*2); ctx.stroke();
 ctx.beginPath(); ctx.arc(px(ax),py(ay),r*0.5,0,Math.PI*2); ctx.stroke();
@@ -530,7 +530,7 @@ drawPixelRect(-8,-2,16,3,C.darkBrown);
 // Head
 drawPixelCircle(0,-28,10,C.skinLight);
 // Cap visor
-ctx.fillStyle=’#cc2222’;
+ctx.fillStyle='#cc2222';
 ctx.fillRect(-10,-37,20,8);
 ctx.fillRect(10,-34,6,4); // visor brim
 // Eyes
@@ -543,7 +543,7 @@ ctx.fillRect(-3,-24,7,2);
 
 // Club & arms based on swing phase
 let shoulderY = -16;
-if(swingPhase===‘idle’||swingPhase===‘address’){
+if(swingPhase==='idle'||swingPhase==='address'){
 // address position - arms down, club at ball
 drawArm(ctx, -5, shoulderY, -9, 2, 5); // left arm
 drawArm(ctx, 5, shoulderY, 9, 2, 5);  // right arm
@@ -554,7 +554,7 @@ ctx.beginPath(); ctx.moveTo(9,2); ctx.lineTo(18,18); ctx.stroke();
 // Club head
 ctx.fillStyle=C.gray;
 ctx.fillRect(15,16,8,5);
-} else if(swingPhase===‘windup’){
+} else if(swingPhase==='windup'){
 // backswing
 let t=swingT;
 let armAngle = t * -2.2; // rotate arms up and back
@@ -567,7 +567,7 @@ ctx.strokeStyle=C.darkBrown; ctx.lineWidth=2;
 ctx.beginPath(); ctx.moveTo(-2+t*-10,-4+t*-10); ctx.lineTo(-18*t,-20*t-2); ctx.stroke();
 ctx.fillStyle=C.gray; ctx.fillRect(-20*t-4,-22*t,7,4);
 ctx.restore();
-} else if(swingPhase===‘swing’||swingPhase===‘follow’){
+} else if(swingPhase==='swing'||swingPhase==='follow'){
 let t=swingT;
 // follow through - arms swing through to left
 ctx.save();
@@ -591,7 +591,7 @@ ctx.restore();
 function drawArm(ctx, sx, sy, ex, ey, w){
 ctx.strokeStyle=C.skinLight;
 ctx.lineWidth=w;
-ctx.lineCap=‘round’;
+ctx.lineCap='round';
 ctx.beginPath();
 ctx.moveTo(px(sx),py(sy));
 ctx.lineTo(px(ex),py(ey));
@@ -603,16 +603,16 @@ function drawNPC(npc){
 if(!npc) return;
 ctx.save();
 ctx.translate(px(npc.x),py(npc.y));
-if(npc.side===‘right’) ctx.scale(-1,1);
+if(npc.side==='right') ctx.scale(-1,1);
 
 let swing = npc.swingT||0;
-let phase = npc.swinging ? (swing<0.4?‘windup’:‘swing’) : ‘address’;
+let phase = npc.swinging ? (swing<0.4?'windup':'swing') : 'address';
 
 switch(npc.type){
-case ‘pro’: drawNPCPro(phase,swing); break;
-case ‘girl’: drawNPCGirl(phase,swing); break;
-case ‘nerd’: drawNPCNerd(phase,swing); break;
-case ‘doc’: drawNPCDoc(phase,swing); break;
+case 'pro': drawNPCPro(phase,swing); break;
+case 'girl': drawNPCGirl(phase,swing); break;
+case 'nerd': drawNPCNerd(phase,swing); break;
+case 'doc': drawNPCDoc(phase,swing); break;
 }
 ctx.restore();
 }
@@ -630,12 +630,12 @@ ctx.fillStyle=C.black; ctx.fillRect(-9,-32,18,8); ctx.fillRect(9,-30,5,3);
 ctx.fillStyle=C.black; ctx.fillRect(-3,-26,2,2); ctx.fillRect(2,-26,2,2);
 // Mustache
 ctx.fillStyle=C.brown; ctx.fillRect(-4,-22,8,2);
-if(phase===‘address’){
+if(phase==='address'){
 drawArm(ctx,-4,-14,12,4,4);
 ctx.strokeStyle=C.gray; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(12,4); ctx.lineTo(18,16); ctx.stroke();
 ctx.fillStyle=C.gray; ctx.fillRect(15,14,7,4);
 } else {
-let side = phase===‘windup’?-1:1.5;
+let side = phase==='windup'?-1:1.5;
 drawArm(ctx,-4,-14,-10+t*side*12,-10-t*8,4);
 ctx.strokeStyle=C.gray; ctx.lineWidth=2;
 ctx.beginPath(); ctx.moveTo(-10+t*side*12,-10-t*8); ctx.lineTo(-18+t*side*20,-22-t*10); ctx.stroke();
@@ -657,7 +657,7 @@ ctx.fillRect(-12,-27,5,10); ctx.fillRect(7,-27,5,10);
 ctx.fillRect(-9,-30,5,5); ctx.fillRect(4,-30,5,5);
 ctx.fillStyle=C.black; ctx.fillRect(-2,-24,2,2); ctx.fillRect(1,-24,2,2);
 ctx.fillStyle=C.pink; ctx.fillRect(-2,-20,5,2);
-if(phase===‘address’){
+if(phase==='address'){
 drawArm(ctx,-3,-12,8,2,3);
 ctx.strokeStyle=C.pink; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(8,2); ctx.lineTo(14,13); ctx.stroke();
 ctx.fillStyle=C.pink; ctx.fillRect(11,11,6,3);
@@ -676,8 +676,8 @@ drawPixelRect(1,0,4,15,C.tan);
 drawPixelRect(-4,13,5,5,C.brown);
 drawPixelRect(0,13,5,5,C.brown);
 // Plaid shirt body
-ctx.fillStyle=’#6688aa’; ctx.fillRect(-6,-15,12,16);
-ctx.fillStyle=’#4466aa’;
+ctx.fillStyle='#6688aa'; ctx.fillRect(-6,-15,12,16);
+ctx.fillStyle='#4466aa';
 for(let xi=-6;xi<6;xi+=3) ctx.fillRect(xi,-15,1,16);
 for(let yi=-15;yi<1;yi+=3) ctx.fillRect(-6,yi,12,1);
 // Pocket protector
@@ -686,12 +686,12 @@ ctx.fillStyle=C.black; ctx.fillRect(2,-11,1,5); ctx.fillRect(4,-11,1,5);
 drawPixelCircle(0,-22,8,C.skinLight);
 // Big glasses
 ctx.strokeStyle=C.black; ctx.lineWidth=1.5;
-ctx.beginPath(); ctx.rect(-6,-26,5,4); ctx.stroke(); ctx.fillStyle=’#aaccff’; ctx.fillRect(-6,-26,5,4);
-ctx.beginPath(); ctx.rect(1,-26,5,4); ctx.stroke(); ctx.fillStyle=’#aaccff’; ctx.fillRect(1,-26,5,4);
+ctx.beginPath(); ctx.rect(-6,-26,5,4); ctx.stroke(); ctx.fillStyle='#aaccff'; ctx.fillRect(-6,-26,5,4);
+ctx.beginPath(); ctx.rect(1,-26,5,4); ctx.stroke(); ctx.fillStyle='#aaccff'; ctx.fillRect(1,-26,5,4);
 ctx.strokeStyle=C.black; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(-1,-24); ctx.lineTo(1,-24); ctx.stroke();
 // Hair (messy)
 ctx.fillStyle=C.brown; ctx.fillRect(-8,-30,16,6); ctx.fillRect(-9,-27,3,4); ctx.fillRect(6,-27,3,4);
-if(phase===‘address’){
+if(phase==='address'){
 drawArm(ctx,-3,-12,9,3,3);
 ctx.strokeStyle=C.gray; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(9,3); ctx.lineTo(15,14); ctx.stroke();
 ctx.fillStyle=C.gray; ctx.fillRect(12,12,6,3);
@@ -722,7 +722,7 @@ ctx.beginPath(); ctx.rect(1,-25,4,3); ctx.stroke();
 ctx.beginPath(); ctx.moveTo(-1,-24); ctx.lineTo(1,-24); ctx.stroke();
 // Mustache (white bushy)
 ctx.fillStyle=C.white; ctx.fillRect(-4,-19,8,3);
-if(phase===‘address’){
+if(phase==='address'){
 drawArm(ctx,-3,-11,9,3,4);
 ctx.strokeStyle=C.gray; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(9,3); ctx.lineTo(14,14); ctx.stroke();
 ctx.fillStyle=C.gray; ctx.fillRect(11,12,6,4);
@@ -773,7 +773,7 @@ if(!foxOnRange) return;
 let f=foxOnRange;
 ctx.save();
 ctx.translate(px(f.x),py(f.y));
-// Fox faces the direction it’s running (vx>0 = right, flip for left)
+// Fox faces the direction it's running (vx>0 = right, flip for left)
 if(f.vx>0) ctx.scale(-1,1);
 // Body
 ctx.fillStyle=C.foxOrange; ctx.fillRect(-12,-8,24,12);
@@ -821,7 +821,7 @@ ctx.globalAlpha=1;
 // Body
 ctx.fillStyle=C.frogGreen;
 ctx.beginPath(); ctx.ellipse(0,0,14,10,0,0,Math.PI*2); ctx.fill();
-ctx.fillStyle=’#88cc66’;
+ctx.fillStyle='#88cc66';
 ctx.beginPath(); ctx.ellipse(0,3,9,6,0,0,Math.PI*2); ctx.fill();
 // Back legs
 ctx.fillStyle=C.frogDark;
@@ -835,19 +835,19 @@ ctx.fillRect(-14,1,5,6); ctx.fillRect(9,1,5,6);
 ctx.fillStyle=C.frogGreen;
 ctx.beginPath(); ctx.arc(-7,-9,5,0,Math.PI*2); ctx.fill();
 ctx.beginPath(); ctx.arc(7,-9,5,0,Math.PI*2); ctx.fill();
-ctx.fillStyle=’#111’;
+ctx.fillStyle='#111';
 ctx.beginPath(); ctx.arc(-7,-10,2.5,0,Math.PI*2); ctx.fill();
 ctx.beginPath(); ctx.arc(7,-10,2.5,0,Math.PI*2); ctx.fill();
-ctx.fillStyle=’#fff’;
+ctx.fillStyle='#fff';
 ctx.beginPath(); ctx.arc(-6,-11,1,0,Math.PI*2); ctx.fill();
 ctx.beginPath(); ctx.arc(8,-11,1,0,Math.PI*2); ctx.fill();
 // Mouth
 ctx.strokeStyle=C.frogDark; ctx.lineWidth=1.5;
 ctx.beginPath(); ctx.arc(0,2,6,0.2,Math.PI-0.2); ctx.stroke();
-ctx.fillStyle=’#337722’; ctx.fillRect(-3,-4,2,2); ctx.fillRect(1,-4,2,2);
-// “x2 DOUBLE” label when on target
+ctx.fillStyle='#337722'; ctx.fillRect(-3,-4,2,2); ctx.fillRect(1,-4,2,2);
+// "x2 DOUBLE" label when on target
 if(!f.arriving){
-drawOutlineText(‘x2!’,0,-24,C.gold,C.black,10);
+drawOutlineText('x2!',0,-24,C.gold,C.black,10);
 }
 ctx.restore();
 }
@@ -886,7 +886,7 @@ drawPixelCircle(ex,lerp(H*0.83,b.ty,t)+2,3,C.black);
 ctx.globalAlpha=1;
 // ball
 drawPixelCircle(bx,by,5,C.white);
-ctx.strokeStyle=’#ddd’; ctx.lineWidth=1;
+ctx.strokeStyle='#ddd'; ctx.lineWidth=1;
 ctx.beginPath(); ctx.arc(px(bx),py(by),5,0,Math.PI*2); ctx.stroke();
 // trail
 for(let i=1;i<=4;i++){
@@ -904,7 +904,7 @@ ctx.globalAlpha=1;
 // ── DRAW HUD ──
 function drawHUD(){
 // Top bar
-ctx.fillStyle=’#111’;
+ctx.fillStyle='#111';
 ctx.globalAlpha=0.85;
 ctx.fillRect(0,0,W,48);
 ctx.globalAlpha=1;
@@ -913,10 +913,10 @@ ctx.lineWidth=2;
 ctx.beginPath(); ctx.moveTo(0,48); ctx.lineTo(W,48); ctx.stroke();
 
 // Round label
-drawOutlineText(‘ROUND ‘+round+’/4’, W*0.5, 10, C.gold, C.black, 11);
+drawOutlineText('ROUND '+round+'/4', W*0.5, 10, C.gold, C.black, 11);
 
 // Name + score (left)
-drawOutlineText((playerName||‘PLAYER’)+’: ’+totalScore, W*0.18, 30, C.neonGreen, C.black, 10);
+drawOutlineText((playerName||'PLAYER')+': '+totalScore, W*0.18, 30, C.neonGreen, C.black, 10);
 
 // Timer (center) — big, urgent color when low
 let t=Math.ceil(roundTimeLeft);
@@ -924,18 +924,18 @@ let timerColor = t<=5 ? C.red : t<=10 ? C.yellow : C.white;
 let timerPulse = t<=5 && Math.floor(frameCount/8)%2===0;
 if(timerPulse){
 ctx.globalAlpha=0.4;
-drawOutlineText(t+‘s’, W*0.5, 31, timerColor, C.black, 18);
+drawOutlineText(t+'s', W*0.5, 31, timerColor, C.black, 18);
 ctx.globalAlpha=1;
 } else {
-drawOutlineText(t+‘s’, W*0.5, 31, timerColor, C.black, 18);
+drawOutlineText(t+'s', W*0.5, 31, timerColor, C.black, 18);
 }
 
 // Balls left (right)
-drawOutlineText(‘x’+ballsLeft, W*0.84, 30, C.yellow, C.black, 12);
+drawOutlineText('x'+ballsLeft, W*0.84, 30, C.yellow, C.black, 12);
 
 // Timer bar under HUD
 let barW=(roundTimeLeft/30)*W;
-ctx.fillStyle=’#222’; ctx.fillRect(0,48,W,4);
+ctx.fillStyle='#222'; ctx.fillRect(0,48,W,4);
 ctx.fillStyle=timerColor; ctx.globalAlpha=0.8;
 ctx.fillRect(0,48,barW,4);
 ctx.globalAlpha=1;
@@ -947,7 +947,7 @@ ctx.fillStyle=C.black;
 ctx.fillRect(0,legendY-10,W,34);
 ctx.globalAlpha=1;
 let lx=W*0.1;
-[{c:C.red,l:‘RED=1’},{c:C.yellow,l:‘YLW=2’},{c:C.green,l:‘GRN=3’},{c:C.blue,l:‘BLU=5’}].forEach((item,i)=>{
+[{c:C.red,l:'RED=1'},{c:C.yellow,l:'YLW=2'},{c:C.green,l:'GRN=3'},{c:C.blue,l:'BLU=5'}].forEach((item,i)=>{
 drawPixelCircle(lx+i*W*0.24,legendY+5,5,item.c);
 drawText(item.l,lx+14+i*W*0.24,legendY+5,item.c,9);
 });
@@ -977,24 +977,24 @@ return true;
 titleDemo.hitFlashes = titleDemo.hitFlashes.filter(f=>{ f.life-=0.04; return f.life>0; });
 
 // Golfer swing cycle
-if(titleDemo.swingPhase===‘idle’){
-titleDemo.idleTimer–;
+if(titleDemo.swingPhase==='idle'){
+titleDemo.idleTimer--;
 if(titleDemo.idleTimer<=0){
-titleDemo.swingPhase=‘windup’;
+titleDemo.swingPhase='windup';
 titleDemo.swingT=0;
 }
 } else {
 titleDemo.swingT += 0.055;
-if(titleDemo.swingPhase===‘windup’ && titleDemo.swingT>=1){
-titleDemo.swingPhase=‘swing’; titleDemo.swingT=0;
+if(titleDemo.swingPhase==='windup' && titleDemo.swingT>=1){
+titleDemo.swingPhase='swing'; titleDemo.swingT=0;
 // Fire ball at current target
 let tgt = titleDemo.targets[titleDemo.currentTarget];
 titleDemo.balls.push({t:0, tx:tgt.x, ty:tgt.y, color:tgt.color});
 titleDemo.currentTarget = (titleDemo.currentTarget+1) % titleDemo.targets.length;
-} else if(titleDemo.swingPhase===‘swing’ && titleDemo.swingT>=1){
-titleDemo.swingPhase=‘follow’; titleDemo.swingT=0;
-} else if(titleDemo.swingPhase===‘follow’ && titleDemo.swingT>=1){
-titleDemo.swingPhase=‘idle’; titleDemo.swingT=0;
+} else if(titleDemo.swingPhase==='swing' && titleDemo.swingT>=1){
+titleDemo.swingPhase='follow'; titleDemo.swingT=0;
+} else if(titleDemo.swingPhase==='follow' && titleDemo.swingT>=1){
+titleDemo.swingPhase='idle'; titleDemo.swingT=0;
 titleDemo.idleTimer = 60 + Math.random()*60;
 }
 }
@@ -1008,7 +1008,7 @@ let bx=lerp(sx,ex,t);
 let by=lerp(sy,ey,t) - Math.sin(t*Math.PI)*55;
 ctx.globalAlpha=0.85;
 drawPixelCircle(bx,by,5,C.white);
-ctx.strokeStyle=’#ccc’; ctx.lineWidth=1;
+ctx.strokeStyle='#ccc'; ctx.lineWidth=1;
 ctx.beginPath(); ctx.arc(px(bx),py(by),5,0,Math.PI*2); ctx.stroke();
 // trail
 for(let i=1;i<=3;i++){
@@ -1023,14 +1023,14 @@ ctx.globalAlpha=1;
 function drawTitle(){
 // BG
 let sg=ctx.createLinearGradient(0,0,0,H);
-sg.addColorStop(0,’#0a1a0a’); sg.addColorStop(1,’#1a3a0e’);
+sg.addColorStop(0,'#0a1a0a'); sg.addColorStop(1,'#1a3a0e');
 ctx.fillStyle=sg; ctx.fillRect(0,0,W,H);
-ctx.strokeStyle=’#1a4a1a’; ctx.lineWidth=1;
+ctx.strokeStyle='#1a4a1a'; ctx.lineWidth=1;
 for(let xi=0;xi<W;xi+=24){ctx.beginPath();ctx.moveTo(xi,0);ctx.lineTo(xi,H);ctx.stroke();}
 for(let yi=0;yi<H;yi+=24){ctx.beginPath();ctx.moveTo(0,yi);ctx.lineTo(W,yi);ctx.stroke();}
 
 // Mountains silhouette
-ctx.fillStyle=’#1a2a18’;
+ctx.fillStyle='#1a2a18';
 ctx.beginPath(); ctx.moveTo(0,H*0.55);
 [0,0.15,0.28,0.42,0.56,0.70,0.84,1.0].forEach((xf,i)=>{
 let yf=i%2===0?H*0.42:H*0.50;
@@ -1039,16 +1039,16 @@ ctx.lineTo(W*xf, yf);
 ctx.lineTo(W,H*0.55); ctx.closePath(); ctx.fill();
 
 // Grass ground strip
-ctx.fillStyle=’#1a3a12’;
+ctx.fillStyle='#1a3a12';
 ctx.fillRect(0,H*0.80,W,H*0.20);
-ctx.fillStyle=’#22441a’;
+ctx.fillStyle='#22441a';
 ctx.fillRect(0,H*0.80,W,8);
 
 // Title logo
 let pulse=0.92+0.08*Math.sin(frameCount*0.07);
 ctx.save(); ctx.translate(W/2, H*0.12); ctx.scale(pulse,pulse);
 ctx.shadowColor=C.neonGreen; ctx.shadowBlur=22;
-drawOutlineText(‘DRIVERZ’,0,0,C.gold,C.black,54);
+drawOutlineText('DRIVERZ',0,0,C.gold,C.black,54);
 ctx.shadowBlur=0; ctx.restore();
 
 // Demo targets on title screen
@@ -1063,7 +1063,7 @@ drawPixelCircle(t.x,t.y,t.r+2,t.color);
 drawPixelCircle(t.x,t.y,t.r,C.white);
 drawPixelCircle(t.x,t.y,t.r*0.35,t.color);
 // flag
-ctx.fillStyle=’#555’; ctx.fillRect(px(t.x),py(t.y-t.r-12),2,12);
+ctx.fillStyle='#555'; ctx.fillRect(px(t.x),py(t.y-t.r-12),2,12);
 ctx.fillStyle=t.color;
 ctx.beginPath();
 ctx.moveTo(px(t.x+2),py(t.y-t.r-12));
@@ -1087,130 +1087,130 @@ ctx.globalAlpha=1;
 titleDemo.balls.forEach(b=>drawTitleDemoBall(b));
 
 // Golfer swinging on title
-let sp=‘address’;
-if(titleDemo.swingPhase===‘windup’) sp=‘windup’;
-else if(titleDemo.swingPhase===‘swing’||titleDemo.swingPhase===‘follow’) sp=‘swing’;
+let sp='address';
+if(titleDemo.swingPhase==='windup') sp='windup';
+else if(titleDemo.swingPhase==='swing'||titleDemo.swingPhase==='follow') sp='swing';
 drawGolfer(W/2, H*0.76, titleDemo.swingT, sp);
 
 // ── NAME BOX (inline under subtitle) ──
-drawOutlineText(‘DRIVING RANGE CHALLENGE’,W/2,H*0.27,C.neonGreen,C.black,13);
+drawOutlineText('DRIVING RANGE CHALLENGE',W/2,H*0.27,C.neonGreen,C.black,13);
 
 // Name label + box
-drawOutlineText(‘YOUR NAME:’,W*0.22,H*0.345,C.white,C.black,11,‘center’);
+drawOutlineText('YOUR NAME:',W*0.22,H*0.345,C.white,C.black,11,'center');
 let boxX=W*0.38, boxY=H*0.325, boxW=W*0.52, boxH=32;
-ctx.fillStyle=nameInputActive?’#0a280a’:’#061206’;
+ctx.fillStyle=nameInputActive?'#0a280a':'#061206';
 ctx.strokeStyle=nameInputActive?C.neonGreen:C.gold;
 ctx.lineWidth=2;
 ctx.fillRect(boxX,boxY,boxW,boxH);
 ctx.strokeRect(boxX,boxY,boxW,boxH);
-let cursor=nameInputActive&&Math.floor(frameCount/18)%2?’|’:’’;
-drawOutlineText((playerName||’’)+cursor, boxX+boxW/2, boxY+boxH/2, C.gold, C.black, 16);
+let cursor=nameInputActive&&Math.floor(frameCount/18)%2?'|':'';
+drawOutlineText((playerName||'')+cursor, boxX+boxW/2, boxY+boxH/2, C.gold, C.black, 16);
 
 // Tap hint near box
 if(!nameInputActive && playerName.length===0){
 let tp=Math.floor(frameCount/22)%2;
 ctx.globalAlpha=tp?0.9:0.4;
-drawText(‘tap to enter name’,boxX+boxW/2,boxY+boxH+11,C.gray,9);
+drawText('tap to enter name',boxX+boxW/2,boxY+boxH+11,C.gray,9);
 ctx.globalAlpha=1;
 }
 
 // TAP TO START / TEE OFF
 let tapPulse=Math.floor(frameCount/25)%2;
-let startLabel = playerName.trim().length>0 ? ‘TEE OFF, ‘+(playerName.trim())+’!’ : ‘TAP TO START’;
+let startLabel = playerName.trim().length>0 ? 'TEE OFF, '+(playerName.trim())+'!' : 'TAP TO START';
 let startColor = playerName.trim().length>0 ? C.neonGreen : C.white;
 if(tapPulse) drawOutlineText(startLabel,W/2,H*0.895,startColor,C.black,16);
 else drawOutlineText(startLabel,W/2,H*0.895,C.gold,C.black,16);
 
-drawOutlineText(‘4 ROUNDS · HALFTIME BONUS · CHAOS HAZARDS’,W/2,H*0.945,C.gray,C.black,10);
+drawOutlineText('4 ROUNDS · HALFTIME BONUS · CHAOS HAZARDS',W/2,H*0.945,C.gray,C.black,10);
 
 // Leaderboard panel bottom-right of title
-drawLeaderboard(W*0.02, H*0.385, W*0.34, H*0.38, ‘TOP SCORES’);
+drawLeaderboard(W*0.02, H*0.385, W*0.34, H*0.38, 'TOP SCORES');
 }
 
 // ── ROUND INTRO ──
 function drawRoundIntro(){
-ctx.fillStyle=‘rgba(0,0,0,0.82)’; ctx.fillRect(0,0,W,H);
+ctx.fillStyle='rgba(0,0,0,0.82)'; ctx.fillRect(0,0,W,H);
 let ballCount=ballsPerRound[round-1];
-let names=[‘WARMUP’,‘FRONT 9’,‘BACK 9’,‘FINAL ROUND’];
+let names=['WARMUP','FRONT 9','BACK 9','FINAL ROUND'];
 drawOutlineText(names[round-1],W/2,H*0.3,C.gold,C.black,28);
-drawOutlineText(‘ROUND ‘+round+’ OF 4’,W/2,H*0.42,C.white,C.black,18);
-drawOutlineText(ballCount+’ BALLS IN THE BUCKET’,W/2,H*0.54,C.yellow,C.black,15);
+drawOutlineText('ROUND '+round+' OF 4',W/2,H*0.42,C.white,C.black,18);
+drawOutlineText(ballCount+' BALLS IN THE BUCKET',W/2,H*0.54,C.yellow,C.black,15);
 if(round===3){
-drawOutlineText(’** HALFTIME BONUS AFTER THIS! **’,W/2,H*0.65,C.neonGreen,C.black,13);
+drawOutlineText('** HALFTIME BONUS AFTER THIS! **',W/2,H*0.65,C.neonGreen,C.black,13);
 }
 let tapPulse=Math.floor(frameCount/20)%2;
-if(tapPulse) drawOutlineText(‘TAP TO TEE OFF’,W/2,H*0.78,C.white,C.black,16);
+if(tapPulse) drawOutlineText('TAP TO TEE OFF',W/2,H*0.78,C.white,C.black,16);
 }
 
 // ── ROUND END ──
 function drawRoundEnd(){
-ctx.fillStyle=‘rgba(0,0,20,0.88)’; ctx.fillRect(0,0,W,H);
-drawOutlineText(‘ROUND ‘+round+’ COMPLETE!’,W/2,H*0.28,C.gold,C.black,22);
-drawOutlineText(’ROUND SCORE: ’+roundScore,W/2,H*0.40,C.neonGreen,C.black,18);
-drawOutlineText(’TOTAL: ’+totalScore,W/2,H*0.52,C.white,C.black,16);
+ctx.fillStyle='rgba(0,0,20,0.88)'; ctx.fillRect(0,0,W,H);
+drawOutlineText('ROUND '+round+' COMPLETE!',W/2,H*0.28,C.gold,C.black,22);
+drawOutlineText('ROUND SCORE: '+roundScore,W/2,H*0.40,C.neonGreen,C.black,18);
+drawOutlineText('TOTAL: '+totalScore,W/2,H*0.52,C.white,C.black,16);
 // Grade
 let pct=ballsPerRound[round-1]>0?roundScore/ballsPerRound[round-1]:0;
-let grade=pct>4?‘EAGLE!’:pct>2.5?‘BIRDIE!’:pct>1.5?‘PAR’:pct>0.8?‘BOGEY’:‘DOUBLE BOGEY’;
+let grade=pct>4?'EAGLE!':pct>2.5?'BIRDIE!':pct>1.5?'PAR':pct>0.8?'BOGEY':'DOUBLE BOGEY';
 let gc=pct>4?C.gold:pct>2.5?C.neonGreen:pct>1.5?C.white:pct>0.8?C.yellow:C.red;
 drawOutlineText(grade,W/2,H*0.63,gc,C.black,26);
 let tapPulse=Math.floor(frameCount/20)%2;
-if(tapPulse) drawOutlineText(‘TAP TO CONTINUE’,W/2,H*0.78,C.white,C.black,14);
+if(tapPulse) drawOutlineText('TAP TO CONTINUE',W/2,H*0.78,C.white,C.black,14);
 }
 
 // ── GAME OVER ──
 function drawGameOver(){
-ctx.fillStyle=‘rgba(0,0,0,0.94)’; ctx.fillRect(0,0,W,H);
+ctx.fillStyle='rgba(0,0,0,0.94)'; ctx.fillRect(0,0,W,H);
 
 // Title
-drawOutlineText(‘GAME OVER’,W/2,H*0.07,C.red,C.black,30);
+drawOutlineText('GAME OVER',W/2,H*0.07,C.red,C.black,30);
 
 // Score
 let isNewHigh = totalScore>localHighScore && totalScore>0;
 if(isNewHigh){
 let hp=Math.floor(frameCount/15)%2;
-drawOutlineText(‘NEW HIGH SCORE!’,W/2,H*0.155,hp?C.gold:C.yellow,C.black,14);
+drawOutlineText('NEW HIGH SCORE!',W/2,H*0.155,hp?C.gold:C.yellow,C.black,14);
 }
-drawOutlineText(’’+totalScore,W/2,H*0.27,C.white,C.black,52);
+drawOutlineText(''+totalScore,W/2,H*0.27,C.white,C.black,52);
 
 // Rank
-let rank=totalScore>200?‘PRO GOLFER’:totalScore>120?‘CLUB PLAYER’:totalScore>60?‘WEEKEND WARRIOR’:‘DRIVING RANGE ROOKIE’;
+let rank=totalScore>200?'PRO GOLFER':totalScore>120?'CLUB PLAYER':totalScore>60?'WEEKEND WARRIOR':'DRIVING RANGE ROOKIE';
 drawOutlineText(rank,W/2,H*0.37,C.neonGreen,C.black,13);
 
 // Leaderboard
-drawLeaderboard(W*0.04, H*0.42, W*0.92, H*0.34, ‘LEADERBOARD’);
+drawLeaderboard(W*0.04, H*0.42, W*0.92, H*0.34, 'LEADERBOARD');
 
 // SMS Challenge button
-ctx.fillStyle=’#003a00’;
+ctx.fillStyle='#003a00';
 ctx.strokeStyle=C.neonGreen; ctx.lineWidth=2;
 ctx.fillRect(W*0.06,H*0.785,W*0.88,40);
 ctx.strokeRect(W*0.06,H*0.785,W*0.88,40);
-drawOutlineText(‘CHALLENGE A FRIEND  (SMS)’,W/2,H*0.785+20,C.neonGreen,C.black,13);
+drawOutlineText('CHALLENGE A FRIEND  (SMS)',W/2,H*0.785+20,C.neonGreen,C.black,13);
 
 // Play again
 let tapPulse=Math.floor(frameCount/25)%2;
-if(tapPulse) drawOutlineText(‘TAP ANYWHERE TO PLAY AGAIN’,W/2,H*0.915,C.white,C.black,12);
-else drawOutlineText(‘TAP ANYWHERE TO PLAY AGAIN’,W/2,H*0.915,C.gold,C.black,12);
+if(tapPulse) drawOutlineText('TAP ANYWHERE TO PLAY AGAIN',W/2,H*0.915,C.white,C.black,12);
+else drawOutlineText('TAP ANYWHERE TO PLAY AGAIN',W/2,H*0.915,C.gold,C.black,12);
 
-drawOutlineText(’LOCAL BEST: ’+localHighScore,W/2,H*0.96,C.gray,C.black,10);
+drawOutlineText('LOCAL BEST: '+localHighScore,W/2,H*0.96,C.gray,C.black,10);
 }
 
 // ── HALFTIME INTRO ──
 function drawHalftimeIntro(){
-ctx.fillStyle=‘rgba(0,20,0,0.90)’; ctx.fillRect(0,0,W,H);
+ctx.fillStyle='rgba(0,20,0,0.90)'; ctx.fillRect(0,0,W,H);
 let pulse=0.9+0.1*Math.sin(frameCount*0.1);
 ctx.save(); ctx.translate(W/2,H*0.2); ctx.scale(pulse,pulse);
 ctx.shadowColor=C.neonGreen; ctx.shadowBlur=20;
-drawOutlineText(‘HALFTIME!’,0,0,C.gold,C.black,32);
+drawOutlineText('HALFTIME!',0,0,C.gold,C.black,32);
 ctx.shadowBlur=0;
 ctx.restore();
-drawOutlineText(‘PUTTING FRENZY!’,W/2,H*0.34,C.neonGreen,C.black,14);
-drawOutlineText(‘SWIPE UP from golfer to putt’,W/2,H*0.44,C.white,C.black,13);
-drawOutlineText(‘Rapid fire — no cooldown!’,W/2,H*0.51,C.yellow,C.black,12);
-drawOutlineText(‘SMALL hole = 3pts  BIG = 1pt’,W/2,H*0.58,C.white,C.black,11);
-drawOutlineText(‘RED small = 3pts  (hardest!)’,W/2,H*0.64,C.red,C.black,11);
-drawOutlineText(‘Hit frog -1  bunny -2  gator -3’,W/2,H*0.71,C.orange,C.black,11);
+drawOutlineText('PUTTING FRENZY!',W/2,H*0.34,C.neonGreen,C.black,14);
+drawOutlineText('SWIPE UP from golfer to putt',W/2,H*0.44,C.white,C.black,13);
+drawOutlineText('Rapid fire — no cooldown!',W/2,H*0.51,C.yellow,C.black,12);
+drawOutlineText('SMALL hole = 3pts  BIG = 1pt',W/2,H*0.58,C.white,C.black,11);
+drawOutlineText('RED small = 3pts  (hardest!)',W/2,H*0.64,C.red,C.black,11);
+drawOutlineText('Hit frog -1  bunny -2  gator -3',W/2,H*0.71,C.orange,C.black,11);
 let tapPulse=Math.floor(frameCount/20)%2;
-if(tapPulse) drawOutlineText(‘TAP TO START PUTTING!’,W/2,H*0.85,C.white,C.black,16);
+if(tapPulse) drawOutlineText('TAP TO START PUTTING!',W/2,H*0.85,C.white,C.black,16);
 }
 
 // ── HALFTIME GAME ──
@@ -1242,10 +1242,10 @@ putt.holeR=8; // starts small
 
 function spawnCritter(){
 if(putt.critters.length>=6) return;
-let types=[‘frog’,‘bunny’,‘gator’];
+let types=['frog','bunny','gator'];
 // weight: more frogs, fewer gators
 let weights=[0.5,0.35,0.15];
-let r=Math.random(), cum=0, type=‘frog’;
+let r=Math.random(), cum=0, type='frog';
 for(let i=0;i<types.length;i++){ cum+=weights[i]; if(r<cum){type=types[i];break;} }
 let cr={
 type,
@@ -1253,9 +1253,9 @@ x:rnd(W*0.08,W*0.92),
 y:rnd(H*0.15,H*0.72),
 vx:rnd(-1.2,1.2)||(Math.random()<0.5?0.6:-0.6),
 vy:rnd(-0.8,0.8)||(Math.random()<0.5?0.5:-0.5),
-r: type===‘gator’?22:type===‘bunny’?12:13,
+r: type==='gator'?22:type==='bunny'?12:13,
 hopT:0, hopTimer:rnd(30,80),
-penalty: type===‘frog’?-1:type===‘bunny’?-2:-3,
+penalty: type==='frog'?-1:type==='bunny'?-2:-3,
 hit:false
 };
 putt.critters.push(cr);
@@ -1263,7 +1263,7 @@ putt.critters.push(cr);
 
 function updateHalftime(dt){
 putt.timeLeft=Math.max(0,putt.timeLeft-dt);
-if(putt.timeLeft<=0){ state=‘halftime_result’; return; }
+if(putt.timeLeft<=0){ state='halftime_result'; return; }
 
 // ── Hole phase cycle
 putt.holeTimer+=dt;
@@ -1329,9 +1329,9 @@ return true;
 // ── Move critters
 putt.critters.forEach(cr=>{
 if(cr.hit) return;
-if(cr.type===‘bunny’){
+if(cr.type==='bunny'){
 // hop: move in bursts
-cr.hopTimer–;
+cr.hopTimer--;
 if(cr.hopTimer<=0){
 cr.hopT=1.0;
 cr.vx=rnd(-2.5,2.5)||(Math.random()<0.5?1:-1);
@@ -1365,28 +1365,28 @@ putt.swingAnim=1.0; // trigger visual
 function drawHalftimeGame(){
 // BG
 let bg=ctx.createLinearGradient(0,0,0,H);
-bg.addColorStop(0,’#0d2010’); bg.addColorStop(1,’#071408’);
+bg.addColorStop(0,'#0d2010'); bg.addColorStop(1,'#071408');
 ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
 
 // Course stripes
 for(let yi=H*0.09;yi<H*0.93;yi+=18){
-ctx.fillStyle=(Math.floor(yi/18)%2===0)?’#1a3a1a’:’#163016’;
+ctx.fillStyle=(Math.floor(yi/18)%2===0)?'#1a3a1a':'#163016';
 ctx.fillRect(8,yi,W-16,18);
 }
 // Border
-ctx.strokeStyle=’#44aa44’; ctx.lineWidth=3;
+ctx.strokeStyle='#44aa44'; ctx.lineWidth=3;
 ctx.strokeRect(8,H*0.09,W-16,H*0.84);
 
 // Sand traps
-ctx.fillStyle=’#c8a850’;
+ctx.fillStyle='#c8a850';
 ctx.beginPath(); ctx.ellipse(W*0.25,H*0.45,28,18,0,0,Math.PI*2); ctx.fill();
 ctx.beginPath(); ctx.ellipse(W*0.75,H*0.35,22,14,0,0,Math.PI*2); ctx.fill();
 ctx.beginPath(); ctx.ellipse(W*0.55,H*0.6,18,12,0,0,Math.PI*2); ctx.fill();
 
 // Water hazard
-ctx.fillStyle=’#1a4a88’;
+ctx.fillStyle='#1a4a88';
 ctx.beginPath(); ctx.ellipse(W*0.72,H*0.6,26,16,0.3,0,Math.PI*2); ctx.fill();
-ctx.fillStyle=’#2266aa’;
+ctx.fillStyle='#2266aa';
 ctx.beginPath(); ctx.ellipse(W*0.70,H*0.58,16,9,0.3,0,Math.PI*2); ctx.fill();
 
 // Hole
@@ -1399,12 +1399,12 @@ ctx.fillStyle=hc; ctx.globalAlpha=0.35;
 ctx.beginPath(); ctx.arc(px(putt.holX),py(putt.holY),hr+8,0,Math.PI*2); ctx.fill();
 ctx.globalAlpha=1; ctx.shadowBlur=0;
 // hole
-ctx.fillStyle=’#000’;
+ctx.fillStyle='#000';
 ctx.beginPath(); ctx.arc(px(putt.holX),py(putt.holY),hr,0,Math.PI*2); ctx.fill();
 ctx.strokeStyle=hc; ctx.lineWidth=2.5;
 ctx.beginPath(); ctx.arc(px(putt.holX),py(putt.holY),hr,0,Math.PI*2); ctx.stroke();
 // flag
-ctx.fillStyle=’#555’; ctx.fillRect(px(putt.holX),py(putt.holY-hr-14),2,14);
+ctx.fillStyle='#555'; ctx.fillRect(px(putt.holX),py(putt.holY-hr-14),2,14);
 ctx.fillStyle=hc;
 ctx.beginPath();
 ctx.moveTo(px(putt.holX+2),py(putt.holY-hr-14));
@@ -1412,17 +1412,17 @@ ctx.lineTo(px(putt.holX+12),py(putt.holY-hr-9));
 ctx.lineTo(px(putt.holX+2),py(putt.holY-hr-4));
 ctx.fill();
 // pts label
-let pts=putt.holePhase===1?‘1pt’:‘3pts’;
+let pts=putt.holePhase===1?'1pt':'3pts';
 drawOutlineText(pts,putt.holX,putt.holY+hr+12,hc,C.black,10);
 }
 
 // Dead balls on course
-putt.balls.forEach(b=>{ drawPixelCircle(b.x,b.y,3,’#ddd’); });
+putt.balls.forEach(b=>{ drawPixelCircle(b.x,b.y,3,'#ddd'); });
 
 // Active flying balls
 putt.activeBalls.forEach(b=>{
 drawPixelCircle(b.x,b.y,5,C.white);
-ctx.strokeStyle=’#aaa’; ctx.lineWidth=1;
+ctx.strokeStyle='#aaa'; ctx.lineWidth=1;
 ctx.beginPath(); ctx.arc(px(b.x),py(b.y),5,0,Math.PI*2); ctx.stroke();
 });
 
@@ -1564,14 +1564,14 @@ drawPixelRect(-5,-2,4,14,C.blue); drawPixelRect(1,-2,4,14,C.blue);
 drawPixelRect(-6,10,6,4,C.black); drawPixelRect(1,10,6,4,C.black);
 drawPixelRect(-5,-16,10,15,C.red);
 drawPixelCircle(0,-24,8,C.skinLight);
-ctx.fillStyle=’#cc2222’; ctx.fillRect(-8,-31,16,7);
+ctx.fillStyle='#cc2222'; ctx.fillRect(-8,-31,16,7);
 // Putter arm — animate on swingAnim
 let pa=-0.3+putt.swingAnim*1.2;
 ctx.save(); ctx.rotate(pa);
 drawArm(ctx,-3,-13,0,2,4); drawArm(ctx,3,-13,0,2,4);
-ctx.strokeStyle=’#bbb’; ctx.lineWidth=3;
+ctx.strokeStyle='#bbb'; ctx.lineWidth=3;
 ctx.beginPath(); ctx.moveTo(0,2); ctx.lineTo(0,20); ctx.stroke();
-ctx.fillStyle=’#aaa’; ctx.fillRect(-9,18,18,5);
+ctx.fillStyle='#aaa'; ctx.fillRect(-9,18,18,5);
 ctx.restore();
 ctx.restore();
 
@@ -1596,29 +1596,29 @@ ctx.globalAlpha=1;
 }
 
 // ── HUD ──
-ctx.fillStyle=‘rgba(0,0,0,0.82)’; ctx.fillRect(0,0,W,H*0.09);
-drawOutlineText(‘PUTTING FRENZY!’,W/2,11,C.gold,C.black,13);
-drawOutlineText(‘PUTTS:’+putt.score,W*0.15,27,C.neonGreen,C.black,11);
-drawOutlineText(Math.ceil(putt.timeLeft)+‘s’,W*0.5,27,putt.timeLeft<10?C.red:C.white,C.black,16);
-drawOutlineText(’+’+totalScore,W*0.85,27,C.yellow,C.black,11);
+ctx.fillStyle='rgba(0,0,0,0.82)'; ctx.fillRect(0,0,W,H*0.09);
+drawOutlineText('PUTTING FRENZY!',W/2,11,C.gold,C.black,13);
+drawOutlineText('PUTTS:'+putt.score,W*0.15,27,C.neonGreen,C.black,11);
+drawOutlineText(Math.ceil(putt.timeLeft)+'s',W*0.5,27,putt.timeLeft<10?C.red:C.white,C.black,16);
+drawOutlineText('+'+totalScore,W*0.85,27,C.yellow,C.black,11);
 
 // Hole legend
-ctx.fillStyle=‘rgba(0,0,0,0.7)’; ctx.fillRect(0,H*0.93,W,H*0.07);
-drawText(‘SMALL=3pts’,W*0.25,H*0.965,’#fff’,9);
-drawText(‘BIG=1pt’,W*0.5,H*0.965,C.yellow,9);
-drawText(‘RED SMALL=3pts’,W*0.78,H*0.965,C.red,9);
+ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,H*0.93,W,H*0.07);
+drawText('SMALL=3pts',W*0.25,H*0.965,'#fff',9);
+drawText('BIG=1pt',W*0.5,H*0.965,C.yellow,9);
+drawText('RED SMALL=3pts',W*0.78,H*0.965,C.red,9);
 
 drawFloatTexts();
 }
 
 function drawHalftimeResult(){
-ctx.fillStyle=‘rgba(0,20,0,0.92)’; ctx.fillRect(0,0,W,H);
-drawOutlineText(‘HALFTIME RESULT!’,W/2,H*0.2,C.gold,C.black,24);
-drawOutlineText(’PUTTS MADE: ’+putt.score,W/2,H*0.34,C.neonGreen,C.black,20);
-drawOutlineText(’BONUS POINTS: ’+(putt.score*3),W/2,H*0.46,C.yellow,C.black,18);
-drawOutlineText(’TOTAL: ’+totalScore,W/2,H*0.57,C.white,C.black,16);
+ctx.fillStyle='rgba(0,20,0,0.92)'; ctx.fillRect(0,0,W,H);
+drawOutlineText('HALFTIME RESULT!',W/2,H*0.2,C.gold,C.black,24);
+drawOutlineText('PUTTS MADE: '+putt.score,W/2,H*0.34,C.neonGreen,C.black,20);
+drawOutlineText('BONUS POINTS: '+(putt.score*3),W/2,H*0.46,C.yellow,C.black,18);
+drawOutlineText('TOTAL: '+totalScore,W/2,H*0.57,C.white,C.black,16);
 let tapPulse=Math.floor(frameCount/20)%2;
-if(tapPulse) drawOutlineText(‘TAP TO CONTINUE’,W/2,H*0.75,C.white,C.black,15);
+if(tapPulse) drawOutlineText('TAP TO CONTINUE',W/2,H*0.75,C.white,C.black,15);
 }
 
 // ── AIMER UPDATE ──
@@ -1661,7 +1661,7 @@ b.y+=(H*0.78-b.y)*0.06;
 if(dist(b.x,b.y,W/2,H*0.78)<20){
 // POOP!
 poopEffects.push({x:W/2+rnd(-15,15),y:H*0.80,life:2.5});
-addFloat(W/2,H*0.72,‘SPLAT! POOPED ON!’,’#ccbb22’,16);
+addFloat(W/2,H*0.72,'SPLAT! POOPED ON!','#ccbb22',16);
 return false;
 }
 return true;
@@ -1683,12 +1683,12 @@ x:fromLeft?-40:W+40,
 y:H*0.72+rnd(-20,20),
 vx:fromLeft?2.2:-2.2,
 hasBall:false, ballCount:0,
-state:‘running’, hit:false
+state:'running', hit:false
 };
 }
 return;
 }
-if(foxOnRange.state===‘running’){
+if(foxOnRange.state==='running'){
 foxOnRange.x+=foxOnRange.vx;
 // Grab stray balls while running
 if(balls.length>0){
@@ -1705,18 +1705,18 @@ return true;
 if(foxOnRange.x<-60||foxOnRange.x>W+60){
 if(foxOnRange.ballCount>0){
 ballsLeft+=foxOnRange.ballCount;
-addFloat(W/2,H*0.78,‘FOX RETURNED ‘+foxOnRange.ballCount+’ BALL’+(foxOnRange.ballCount>1?‘S’:’’)+’!’,C.foxOrange,15);
+addFloat(W/2,H*0.78,'FOX RETURNED '+foxOnRange.ballCount+' BALL'+(foxOnRange.ballCount>1?'S':'')+'!',C.foxOrange,15);
 }
 foxOnRange=null;
 }
-} else if(foxOnRange.state===‘hit’){
+} else if(foxOnRange.state==='hit'){
 // Fox was hit — collects ALL balls and runs back fast
 foxOnRange.vx = foxOnRange.x < W/2 ? -4 : 4;
 foxOnRange.x+=foxOnRange.vx;
 balls=[];  // scoop everything
 if(foxOnRange.x<-80||foxOnRange.x>W+80){
 ballsLeft+=foxOnRange.ballCount;
-addFloat(W/2,H*0.78,‘FOX COLLECTED ALL BALLS!’,C.foxOrange,14);
+addFloat(W/2,H*0.78,'FOX COLLECTED ALL BALLS!',C.foxOrange,14);
 foxOnRange=null;
 }
 }
@@ -1742,12 +1742,12 @@ arriving:true
 }
 return;
 }
-frogOnRange.life–;
+frogOnRange.life--;
 if(frogOnRange.life<=0){ frogOnRange=null; return; }
 
 if(frogOnRange.arriving){
 // Hop toward destination in discrete jumps
-frogOnRange.hopTimer–;
+frogOnRange.hopTimer--;
 if(frogOnRange.hopTimer<=0){
 frogOnRange.hopT=1.0;
 frogOnRange.hopTimer=22+Math.random()*10;
@@ -1767,7 +1767,7 @@ frogOnRange.arriving=false;
 if(frogOnRange.hopT>0) frogOnRange.hopT=Math.max(0,frogOnRange.hopT-0.08);
 } else {
 // Idle at target: small random hops
-frogOnRange.hopTimer–;
+frogOnRange.hopTimer--;
 if(frogOnRange.hopTimer<=0){
 frogOnRange.hopT=1.0;
 frogOnRange.hopTimer=45+Math.random()*40;
@@ -1806,7 +1806,7 @@ cartAnim.active=false;
 function updateNPCs(){
 [npcLeft,npcRight].forEach(npc=>{
 if(!npc) return;
-npc.swingTimer–;
+npc.swingTimer--;
 if(npc.swingTimer<=0 && !npc.swinging){
 npc.swinging=true;
 npc.swingT=0;
@@ -1819,7 +1819,7 @@ npc.swinging=false;
 npc.swingT=0;
 // Cheer reaction sometimes
 if(Math.random()<0.15){
-addFloat(npc.x,npc.y-40,[‘Nice shot!’,‘Great swing!’,‘Yes!’,‘Fore!’][Math.floor(Math.random()*4)],C.white,11);
+addFloat(npc.x,npc.y-40,['Nice shot!','Great swing!','Yes!','Fore!'][Math.floor(Math.random()*4)],C.white,11);
 }
 }
 }
@@ -1831,28 +1831,28 @@ let aimerSnapshot = {x:0, y:0}; // locked at tap moment
 
 function doSwing(){
 if(ballsLeft<=0) return;
-ballsLeft–;
+ballsLeft--;
 launchBall();
-swingState=‘windup’;
+swingState='windup';
 swingT=0;
 if(ballsLeft<=0){
 // All balls used — end round after last ball lands
-setTimeout(()=>{ if(state===‘playing’) endRound(); }, 1000);
+setTimeout(()=>{ if(state==='playing') endRound(); }, 1000);
 }
 }
 
 function updateSwing(){
-if(swingState===‘idle’) return;
+if(swingState==='idle') return;
 swingT+=0.07; // faster visual animation
-if(swingState===‘windup’ && swingT>=1){
-swingState=‘swing’;
+if(swingState==='windup' && swingT>=1){
+swingState='swing';
 swingT=0;
 // ball already launched — nothing to do here
-} else if(swingState===‘swing’ && swingT>=1){
-swingState=‘follow’;
+} else if(swingState==='swing' && swingT>=1){
+swingState='follow';
 swingT=0;
-} else if(swingState===‘follow’ && swingT>=1){
-swingState=‘idle’;
+} else if(swingState==='follow' && swingT>=1){
+swingState='idle';
 swingT=0;
 }
 }
@@ -1867,37 +1867,37 @@ balls=[];
 birds=[];
 frogOnRange=null;
 foxOnRange=null;
-swingState=‘idle’;
+swingState='idle';
 ballFlights=[];
-state=‘playing’;
+state='playing';
 aimer.x=W/2; aimer.y=H*0.50;
 aimer.vx=1.2; aimer.vy=0.8;
 // Pick NPCs
-let pool=[…npcTypes];
+let pool=[...npcTypes];
 let shuffled=pool.sort(()=>Math.random()-0.5);
-npcLeft=makeNPC(shuffled[0],‘left’);
-npcRight=makeNPC(shuffled[1],‘right’);
+npcLeft=makeNPC(shuffled[0],'left');
+npcRight=makeNPC(shuffled[1],'right');
 }
 
 function endRound(){
 roundScore=totalScore-roundStartScore;
-state=‘roundend’;
+state='roundend';
 }
 
 function onGameOver(){
 // Save local high score
 if(totalScore>localHighScore){
 localHighScore=totalScore;
-localStorage.setItem(‘driverz_hs’, totalScore);
+localStorage.setItem('driverz_hs', totalScore);
 }
 // Submit to dreamlo
 if(!scoreSubmitted && playerName.trim()){
-submitScore(playerName.trim()||‘ANON’, totalScore);
+submitScore(playerName.trim()||'ANON', totalScore);
 scoreSubmitted=true;
 }
 // Refresh leaderboard
 fetchLeaderboard();
-state=‘gameover’;
+state='gameover';
 }
 
 function launchBall(){
@@ -1909,8 +1909,8 @@ let minD=999;
 let birdHit=birds.find(b=>dist(tx,ty,b.x,b.y)<35);
 if(birdHit){
 totalScore+=10;
-ballFlights.push({tx:birdHit.x,ty:birdHit.y,t:0,score:10,hit:‘bird’,birdRef:birdHit});
-addFloat(birdHit.x,birdHit.y-15,’+10 BIRDIE!’,C.orange,16);
+ballFlights.push({tx:birdHit.x,ty:birdHit.y,t:0,score:10,hit:'bird',birdRef:birdHit});
+addFloat(birdHit.x,birdHit.y-15,'+10 BIRDIE!',C.orange,16);
 // Bird dives toward golfer and poops
 birdHit.diving=true;
 birdHit.diveTarget={x:W/2,y:H*0.82};
@@ -1919,10 +1919,10 @@ return;
 
 // Check fox — hit fox to trigger ball collection
 if(foxOnRange && dist(tx,ty,foxOnRange.x,foxOnRange.y)<45){
-foxOnRange.state=‘hit’;
+foxOnRange.state='hit';
 foxOnRange.ballCount=balls.length;
-addFloat(foxOnRange.x,foxOnRange.y-20,‘FOX HIT! COLLECTING BALLS!’,C.foxOrange,13);
-ballFlights.push({tx:foxOnRange.x,ty:foxOnRange.y,t:0,score:0,hit:‘fox_hit’});
+addFloat(foxOnRange.x,foxOnRange.y-20,'FOX HIT! COLLECTING BALLS!',C.foxOrange,13);
+ballFlights.push({tx:foxOnRange.x,ty:foxOnRange.y,t:0,score:0,hit:'fox_hit'});
 return;
 }
 
@@ -1936,8 +1936,8 @@ if(d<nearD){nearD=d;nearT=t;}
 });
 let pts=(nearT?nearT.pts:1)*2;
 totalScore+=pts;
-addFloat(frogOnRange.x,frogOnRange.y-20,‘FROG HIT! x2 = +’+pts,C.gold,18);
-ballFlights.push({tx:frogOnRange.x,ty:frogOnRange.y,t:0,score:0,hit:‘frog_hit’});
+addFloat(frogOnRange.x,frogOnRange.y-20,'FROG HIT! x2 = +'+pts,C.gold,18);
+ballFlights.push({tx:frogOnRange.x,ty:frogOnRange.y,t:0,score:0,hit:'frog_hit'});
 frogOnRange=null;
 return;
 }
@@ -1949,7 +1949,7 @@ if(d<minD){ minD=d; hit=t; }
 
 let scored=hit && minD<(hit.r+38);
 if(scored){
-ballFlights.push({tx:hit.x,ty:hit.y,t:0,score:hit.pts,hit:‘target’,color:hit.color});
+ballFlights.push({tx:hit.x,ty:hit.y,t:0,score:hit.pts,hit:'target',color:hit.color});
 } else {
 // Miss — ball lands, but if it would go past back fence, bounce it back
 let landX=tx+rnd(-20,20);
@@ -1958,7 +1958,7 @@ landX=clamp(landX,W*0.08,W*0.92);
 // If aimed at top area (near back fence), bounce back to mid-range
 if(landY<H*0.50) landY=H*0.52+rnd(0,H*0.1);
 landY=clamp(landY,H*0.48,H*0.78);
-ballFlights.push({tx:landX,ty:landY,t:0,score:0,hit:‘miss’});
+ballFlights.push({tx:landX,ty:landY,t:0,score:0,hit:'miss'});
 }
 }
 
@@ -1966,14 +1966,14 @@ function updateBallFlight(){
 ballFlights = ballFlights.filter(b=>{
 b.t+=0.032;
 if(b.t>=1){
-if(b.hit===‘target’){
+if(b.hit==='target'){
 totalScore+=b.score;
-addFloat(b.tx,b.ty-20,’+’+b.score+’!’,b.color||C.gold,20);
+addFloat(b.tx,b.ty-20,'+'+b.score+'!',b.color||C.gold,20);
 if(b.score>=3 && Math.random()<0.4){
 let npc=Math.random()<0.5?npcLeft:npcRight;
-if(npc) addFloat(npc.x,npc.y-40,‘Great shot!’,C.white,11);
+if(npc) addFloat(npc.x,npc.y-40,'Great shot!',C.white,11);
 }
-} else if(b.hit===‘miss’){
+} else if(b.hit==='miss'){
 balls.push({x:b.tx,y:b.ty});
 }
 // bird/fox_hit/frog_hit handled at launch time
@@ -2002,17 +2002,17 @@ frameCount++;
 
 ctx.clearRect(0,0,W,H);
 
-if(state===‘title’){
+if(state==='title'){
 drawTitle();
-} else if(state===‘pregame’){
+} else if(state==='pregame'){
 drawRange();
 drawTargets();
-drawGolfer(W/2,H*0.83,‘address’,‘address’);
+drawGolfer(W/2,H*0.83,'address','address');
 drawRoundIntro();
-} else if(state===‘playing’){
+} else if(state==='playing'){
 // Round timer
 roundTimeLeft=Math.max(0,roundTimeLeft-dt);
-if(roundTimeLeft<=0 && state===‘playing’){
+if(roundTimeLeft<=0 && state==='playing'){
 endRound();
 }
 updateAimer();
@@ -2061,27 +2061,27 @@ if(ballsLeft>0 && ballsLeft<=5){
   if(wp) drawOutlineText('!! '+ballsLeft+' BALLS LEFT!',W/2,H*0.55,C.red,C.black,16);
 }
 
-} else if(state===‘roundend’){
+} else if(state==='roundend'){
 drawRange();
 drawTargets();
 drawRoundEnd();
-} else if(state===‘halftime_intro’){
+} else if(state==='halftime_intro'){
 drawHalftimeIntro();
-} else if(state===‘halftime’){
+} else if(state==='halftime'){
 let ht=Math.min(dt,0.05);
 updateHalftime(ht);
 updateFloatTexts();
 drawHalftimeGame();
-} else if(state===‘halftime_result’){
+} else if(state==='halftime_result'){
 drawHalftimeResult();
-} else if(state===‘gameover’){
+} else if(state==='gameover'){
 drawGameOver();
 }
 }
 
 // ── INPUT ──
-canvas.addEventListener(‘touchstart’, handleTap, {passive:false});
-canvas.addEventListener(‘mousedown’, handleTap);
+canvas.addEventListener('touchstart', handleTap, {passive:false});
+canvas.addEventListener('mousedown', handleTap);
 
 function handleTap(e){
 e.preventDefault();
@@ -2094,7 +2094,7 @@ if(e.touches && e.touches.length>0){ clientX=e.touches[0].clientX; clientY=e.tou
 else if(e.changedTouches && e.changedTouches.length>0){ clientX=e.changedTouches[0].clientX; clientY=e.changedTouches[0].clientY; }
 else { clientX=e.clientX; clientY=e.clientY; }
 
-if(state===‘title’){
+if(state==='title'){
 let rect=canvas.getBoundingClientRect();
 let cx=(clientX-rect.left)*(W/rect.width);
 let cy=(clientY-rect.top)*(H/rect.height);
@@ -2103,37 +2103,37 @@ let boxX=W*0.38, boxY=H*0.325, boxW=W*0.52, boxH=32;
 if(cx>=boxX&&cx<=boxX+boxW&&cy>=boxY&&cy<=boxY+boxH){
 nameInputActive=true;
 nameInput.value = playerName;
-nameInput.style.pointerEvents=‘auto’;
+nameInput.style.pointerEvents='auto';
 nameInput.focus();
-nameInput.style.pointerEvents=‘none’;
+nameInput.style.pointerEvents='none';
 return;
 }
 // Anywhere else = start game
 nameInputActive=false;
 round=1; totalScore=0; roundScore=0; roundStartScore=0;
-state=‘pregame’;
-} else if(state===‘pregame’){
+state='pregame';
+} else if(state==='pregame'){
 startRound();
-} else if(state===‘playing’){
+} else if(state==='playing'){
 doSwing();
-} else if(state===‘roundend’){
+} else if(state==='roundend'){
 round++;
 if(round===3){
-state=‘halftime_intro’;
+state='halftime_intro';
 } else if(round>4){
 onGameOver();
 } else {
-state=‘pregame’;
+state='pregame';
 }
-} else if(state===‘halftime_intro’){
+} else if(state==='halftime_intro'){
 initHalftime();
-state=‘halftime’;
-} else if(state===‘halftime’){
+state='halftime';
+} else if(state==='halftime'){
 // swipe handled separately below
-} else if(state===‘halftime_result’){
+} else if(state==='halftime_result'){
 round=3;
-state=‘pregame’;
-} else if(state===‘gameover’){
+state='pregame';
+} else if(state==='gameover'){
 let rect=canvas.getBoundingClientRect();
 let cx=(clientX-rect.left)*(W/rect.width);
 let cy=(clientY-rect.top)*(H/rect.height);
@@ -2145,23 +2145,23 @@ return;
 // Anywhere else = play again
 round=1; totalScore=0; roundScore=0; roundStartScore=0;
 scoreSubmitted=false;
-state=‘title’;
+state='title';
 }
 }
 
 // After round 2 we go halftime, then rounds 3 and 4
 
 // ── SWIPE FOR HALFTIME PUTTING ──
-canvas.addEventListener(‘touchstart’, e=>{
-if(state!==‘halftime’) return;
+canvas.addEventListener('touchstart', e=>{
+if(state!=='halftime') return;
 let t=e.touches[0];
 putt.touchStartX=t.clientX;
 putt.touchStartY=t.clientY;
 putt.touchStartTime=performance.now();
 },{passive:true});
 
-canvas.addEventListener(‘touchend’, e=>{
-if(state!==‘halftime’) return;
+canvas.addEventListener('touchend', e=>{
+if(state!=='halftime') return;
 if(putt.touchStartY===null) return;
 let t=e.changedTouches[0];
 let dx=t.clientX-putt.touchStartX;
@@ -2176,12 +2176,12 @@ putt.touchStartY=null;
 
 // Mouse swipe for desktop testing
 let mouseDown=false, msx=0, msy=0;
-canvas.addEventListener(‘mousedown’, e=>{
-if(state!==‘halftime’) return;
+canvas.addEventListener('mousedown', e=>{
+if(state!=='halftime') return;
 mouseDown=true; msx=e.clientX; msy=e.clientY;
 });
-canvas.addEventListener(‘mouseup’, e=>{
-if(state!==‘halftime’||!mouseDown) return;
+canvas.addEventListener('mouseup', e=>{
+if(state!=='halftime'||!mouseDown) return;
 mouseDown=false;
 let dx=e.clientX-msx, dy=e.clientY-msy;
 let rect=canvas.getBoundingClientRect();
