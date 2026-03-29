@@ -1,0 +1,2203 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>DRIVERZ</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#111; display:flex; justify-content:center; align-items:center; height:100vh; overflow:hidden; font-family:monospace; }
+canvas { display:block; touch-action:none; image-rendering:pixelated; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<input id="nameInput" type="text" maxlength="12" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
+  style="position:fixed;opacity:0;pointer-events:none;top:50%;left:50%;width:1px;height:1px;font-size:16px;border:none;outline:none;">
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const nameInput = document.getElementById('nameInput');
+
+// Wire up the hidden input so typing flows into playerName
+nameInput.addEventListener(‘input’, ()=>{
+playerName = nameInput.value.toUpperCase().slice(0,12);
+});
+nameInput.addEventListener(‘keydown’, e=>{
+if(e.key===‘Enter’||e.key===‘Go’||e.key===‘Done’){
+nameInput.blur();
+nameInputActive=false;
+}
+});
+nameInput.addEventListener(‘blur’, ()=>{
+nameInputActive=false;
+});
+
+// iPhone portrait sizing
+const W = Math.min(window.innerWidth, 390);
+const H = Math.min(window.innerHeight, 844);
+canvas.width = W;
+canvas.height = H;
+
+// ── PALETTE ──
+const C = {
+sky1:’#87CEEB’, sky2:’#4a9fd4’,
+grass:’#3a7d2c’, grassDark:’#2e6422’, grassLight:’#4a9e38’,
+dirt:’#8B6914’, dirtLight:’#a07c1e’,
+red:’#e63c3c’, yellow:’#f5c518’, green:’#22bb55’, blue:’#2255dd’,
+white:’#fff’, black:’#111’, gray:’#888’, darkGray:’#444’,
+tan:’#d4a96a’, skinLight:’#f5c8a0’, skinDark:’#c8926a’,
+brown:’#7a3e1e’, darkBrown:’#4a2010’,
+orange:’#f07020’, pink:’#e86090’, purple:’#8844cc’,
+neonGreen:’#00ff88’, gold:’#ffd700’,
+cartYellow:’#e8c040’, cartGray:’#999’,
+birdWhite:’#eee’, birdGray:’#bbb’,
+foxOrange:’#d4601a’, foxWhite:’#f0e8d8’,
+frogGreen:’#44aa44’, frogDark:’#228822’,
+putt:’#55aa55’, puttDark:’#337733’, puttBorder:’#222’
+};
+
+// ── DREAMLO LEADERBOARD ──
+// ⬇️  SWAP THESE TWO LINES when you get your dreamlo keys
+const DREAMLO_PUBLIC  = ‘YOUR_PUBLIC_KEY_HERE’;
+const DREAMLO_PRIVATE = ‘YOUR_PRIVATE_KEY_HERE’;
+const DREAMLO_URL     = ‘https://dreamlo.com/lb/’;
+const GAME_URL        = ‘https://jbt125-coder.github.io/driverz.html’; // update path as needed
+
+let localHighScore = parseInt(localStorage.getItem(‘driverz_hs’)||‘0’);
+let leaderboard = []; // [{name, score}]
+let leaderboardStatus = ‘idle’; // idle, loading, done, error
+let scoreSubmitted = false;
+
+function submitScore(name, score){
+if(DREAMLO_PRIVATE===‘YOUR_PRIVATE_KEY_HERE’) return; // skip if not configured
+let url = DREAMLO_URL + DREAMLO_PRIVATE + ‘/add/’ +
+encodeURIComponent(name) + ‘/’ + score;
+fetch(url).catch(()=>{}); // fire and forget
+}
+
+function fetchLeaderboard(){
+if(DREAMLO_PUBLIC===‘YOUR_PUBLIC_KEY_HERE’){
+// Use fake demo data so the screen looks good
+leaderboard=[
+{name:‘PRO GOLFER’, score:280},
+{name:‘ACE’, score:240},
+{name:‘EAGLE EYE’, score:210},
+{name:‘BIRDIE’, score:185},
+{name:‘PAR PLAYER’, score:160},
+];
+leaderboardStatus=‘done’; return;
+}
+leaderboardStatus=‘loading’;
+fetch(DREAMLO_URL + DREAMLO_PUBLIC + ‘/json/5’)
+.then(r=>r.json())
+.then(data=>{
+let entries = data?.dreamlo?.leaderboard?.entry;
+if(!entries) { leaderboardStatus=‘done’; leaderboard=[]; return; }
+if(!Array.isArray(entries)) entries=[entries];
+leaderboard = entries.map(e=>({name:String(e.name), score:parseInt(e.score)}));
+leaderboardStatus=‘done’;
+})
+.catch(()=>{ leaderboardStatus=‘error’; leaderboard=[]; });
+}
+
+function sendSMSChallenge(){
+let name = playerName.trim()||‘A friend’;
+let msg = name+’ scored ‘+totalScore+’ pts on DRIVERZ! Can you beat it? ’+GAME_URL;
+window.location.href = ‘sms:?&body=’+encodeURIComponent(msg);
+}
+
+function drawLeaderboard(x, y, w, h, title){
+// Panel
+ctx.fillStyle=‘rgba(0,10,0,0.82)’;
+ctx.strokeStyle=C.gold; ctx.lineWidth=2;
+ctx.fillRect(px(x),py(y),w,h);
+ctx.strokeRect(px(x),py(y),w,h);
+drawOutlineText(title, x+w/2, y+14, C.gold, C.black, 11);
+ctx.fillStyle=C.gold; ctx.fillRect(px(x+8),py(y+22),w-16,1);
+
+if(leaderboardStatus===‘loading’){
+drawOutlineText(‘LOADING…’, x+w/2, y+h/2, C.gray, C.black, 10);
+return;
+}
+if(leaderboardStatus===‘error’||leaderboard.length===0){
+drawOutlineText(‘NO SCORES YET’, x+w/2, y+h/2, C.gray, C.black, 10);
+return;
+}
+leaderboard.slice(0,5).forEach((entry,i)=>{
+let ey = y+34+i*20;
+let medal = [‘🥇’,‘🥈’,‘🥉’,‘4.’,‘5.’][i];
+let nameColor = i===0?C.gold:i===1?’#c0c0c0’:i===2?’#cd7f32’:C.white;
+// Highlight player’s own score
+if(entry.name.toUpperCase()===playerName.toUpperCase()){
+ctx.fillStyle=‘rgba(0,255,136,0.15)’;
+ctx.fillRect(px(x+4),py(ey-9),w-8,18);
+}
+drawText(medal, x+16, ey, nameColor, 10);
+// Truncate long names
+let n = entry.name.length>10 ? entry.name.slice(0,9)+’.’ : entry.name;
+drawText(n.toUpperCase(), x+28, ey, nameColor, 10, ‘left’);
+drawText(entry.score, x+w-8, ey, nameColor, 10, ‘right’);
+});
+// Local high score footer
+drawText(’LOCAL BEST: ’+localHighScore, x+w/2, y+h-10, C.neonGreen, 9);
+}
+let state = ‘title’; // title, pregame, playing, halftime_intro, halftime, halftime_result, roundend, gameover
+let playerName = ‘’;
+let nameInputActive = false; // is name box focused
+let poopEffects = [];
+
+// Title screen demo animation
+let titleDemo = {
+swingT: 0, swingPhase: ‘idle’, idleTimer: 120,
+balls: [],   // {x,y,vx,vy,t,tx,ty,hit,color}
+targets: [   // title screen targets to aim at
+{x:W*0.20, y:H*0.52, color:C.red,    r:14},
+{x:W*0.50, y:H*0.44, color:C.green,  r:12},
+{x:W*0.80, y:H*0.52, color:C.yellow, r:13},
+{x:W*0.35, y:H*0.48, color:C.blue,   r:11},
+{x:W*0.65, y:H*0.48, color:C.blue,   r:11},
+],
+currentTarget: 0,
+hitFlashes: [] // {x,y,color,life}
+}; // {x,y,life} poop splats on golfer
+let round = 1;
+let totalScore = 0;
+let roundScore = 0;
+let ballsLeft = 0;
+let ballsPerRound = [20,30,40,50];
+let roundTimeLeft = 30; // seconds countdown per round
+let swingActive = false;
+let swingFrame = 0;
+let lastTap = 0;
+let balls = []; // missed balls on range
+let ballFlights = []; // multiple balls in flight simultaneously
+let floatTexts = [];
+let birds = [];
+let frogOnRange = null;
+let foxOnRange = null;
+let cartAnim = {x:W+60, y:0, active:false, timer:0, dir:-1};
+let npcLeft = null, npcRight = null;
+let npcTypes = [‘pro’,‘girl’,‘nerd’,‘doc’];
+let npcPool = [];
+let frameCount = 0;
+
+// target aimer
+let aimer = {x:W/2, y:H*0.38, vx:1.2, vy:0.8, speed:1.2};
+
+// swing state
+let swingState = ‘idle’; // idle, windup, swing, follow
+let swingT = 0;
+let ballFlight = null; // {x,y,tx,ty,t,score,hit}
+
+// halftime state
+let putt = {
+active: false,
+ballX: 0, ballY: 0,
+holX: 0, holY: 0,
+holePhase: 0, // 0=black,1=yellow,2=red,then vanish
+holeTimer: 0,
+holeFadeT: 0,
+swingDir: 1, // 1=back -1=forward
+putterAngle: 0,
+swinging: false,
+swingT: 0,
+ballVx: 0, ballVy: 0,
+ballMoving: false,
+score: 0,
+timeLeft: 30,
+frogs: [],
+wallBounces: 0,
+lastPuttTime: 0,
+balls: [] // rolling balls on course
+};
+
+// ── TARGETS ──
+// 5 targets: 2 red, 1 yellow pair (left/right), 1 green, 1 blue
+const TARGETS = [
+// Red — closest, bottom of range
+{x:W*0.32, y:H*0.68, color:C.red,    flag:‘R’, pts:1,  r:18, label:‘RED’},
+{x:W*0.68, y:H*0.68, color:C.red,    flag:‘R’, pts:1,  r:18, label:‘RED’},
+// Yellow — mid range
+{x:W*0.22, y:H*0.60, color:C.yellow, flag:‘Y’, pts:2,  r:16, label:‘YLW’},
+{x:W*0.78, y:H*0.60, color:C.yellow, flag:‘Y’, pts:2,  r:16, label:‘YLW’},
+// Green — farther back
+{x:W*0.50, y:H*0.54, color:C.green,  flag:‘G’, pts:3,  r:14, label:‘GRN’},
+// Blue — farthest back, near horizon
+{x:W*0.30, y:H*0.50, color:C.blue,   flag:‘B’, pts:5,  r:12, label:‘BLU’},
+{x:W*0.70, y:H*0.50, color:C.blue,   flag:‘B’, pts:5,  r:12, label:‘BLU’},
+];
+
+// ── NPC DEFINITIONS ──
+function makeNPC(type, side) {
+let x = side === ‘left’ ? W*0.12 : W*0.88;
+return {type, x, y:H*0.78, side, swingT:0, swinging:false, swingTimer: 60 + Math.random()*180, frame:0};
+}
+
+// ── HELPERS ──
+function rnd(a,b){return a+Math.random()*(b-a);}
+function lerp(a,b,t){return a+(b-a)*t;}
+function dist(ax,ay,bx,by){return Math.hypot(ax-bx,ay-by);}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+
+function addFloat(x,y,txt,color,size){
+floatTexts.push({x,y,txt,color,size:size||16,life:1.0,vy:-1.5});
+}
+
+// ── DRAWING HELPERS ──
+function px(x){return Math.round(x);}
+function py(y){return Math.round(y);}
+
+function drawPixelRect(x,y,w,h,color){
+ctx.fillStyle=color;
+ctx.fillRect(px(x),py(y),Math.ceil(w),Math.ceil(h));
+}
+
+function drawPixelCircle(x,y,r,color){
+ctx.fillStyle=color;
+ctx.beginPath();
+ctx.arc(px(x),py(y),r,0,Math.PI*2);
+ctx.fill();
+}
+
+function drawText(txt,x,y,color,size,align){
+ctx.fillStyle=color||C.white;
+ctx.font=`bold ${size||14}px monospace`;
+ctx.textAlign=align||‘center’;
+ctx.textBaseline=‘middle’;
+ctx.fillText(txt,px(x),py(y));
+}
+
+function drawOutlineText(txt,x,y,color,outline,size,align){
+ctx.font=`bold ${size||14}px monospace`;
+ctx.textAlign=align||‘center’;
+ctx.textBaseline=‘middle’;
+ctx.strokeStyle=outline||C.black;
+ctx.lineWidth=3;
+ctx.strokeText(txt,px(x),py(y));
+ctx.fillStyle=color||C.white;
+ctx.fillText(txt,px(x),py(y));
+}
+
+// ── DRAW RANGE BACKGROUND ──
+function drawRange(){
+// ── Sky: light blue top to pale horizon
+let sky=ctx.createLinearGradient(0,0,0,H*0.52);
+sky.addColorStop(0,’#b8dff0’);
+sky.addColorStop(0.5,’#ceeaf8’);
+sky.addColorStop(1,’#dff2fb’);
+ctx.fillStyle=sky;
+ctx.fillRect(0,0,W,H*0.52);
+
+// ── Soft flat clouds
+drawFlatCloud(W*0.12, H*0.07, 52, 16);
+drawFlatCloud(W*0.62, H*0.05, 44, 13);
+drawFlatCloud(W*0.85, H*0.12, 34, 10);
+
+// ── Back mountains (blue-grey, tallest, 3 peaks)
+drawSmoothMountains(
+[{x:W*0.10,h:H*0.17},{x:W*0.28,h:H*0.24},{x:W*0.50,h:H*0.28},
+{x:W*0.72,h:H*0.22},{x:W*0.90,h:H*0.16}],
+H*0.42, ‘#8ab4c8’, ‘#a8ccdc’
+);
+
+// ── Mid mountains (teal-blue, slightly in front)
+drawSmoothMountains(
+[{x:W*0.0,h:H*0.10},{x:W*0.18,h:H*0.16},{x:W*0.38,h:H*0.20},
+{x:W*0.58,h:H*0.18},{x:W*0.78,h:H*0.14},{x:W*1.0,h:H*0.09}],
+H*0.46, ‘#7aaa9e’, ‘#90bfb4’
+);
+
+// ── Back rolling hill (dark green)
+drawRollingHill(H*0.48, H*0.10, ‘#4a7a3a’);
+
+// ── Mid rolling hill (bright green)
+drawRollingHill(H*0.53, H*0.08, ‘#5a9a44’);
+
+// ── Fairway grass — perspective strips from horizon to tee
+let horizonY = H*0.52;
+let grassColors = [’#5aaa48’,’#52983e’,’#5aaa48’,’#4e9038’,’#56a042’,’#4e9038’,’#52983e’,’#5aaa48’];
+for(let i=0;i<8;i++){
+let y0 = horizonY + i*(H*0.30/8);
+let y1 = horizonY + (i+1)*(H*0.30/8);
+ctx.fillStyle = grassColors[i];
+ctx.fillRect(0, py(y0), W, py(y1)-py(y0)+1);
+}
+
+// ── Horizon shimmer line
+ctx.fillStyle=’#6abf52’;
+for(let xi=0;xi<W;xi+=3){
+let h2=2+Math.sin(frameCount*0.04+xi*0.25)*1.5;
+ctx.fillRect(xi, py(horizonY-h2), 2, h2+1);
+}
+
+// ── Pine trees along horizon (like reference)
+let treeYBase = H*0.49;
+let treeSizes=[12,10,14,9,11,13,10,12,9,11];
+let treeXs=[0.04,0.10,0.16,0.83,0.88,0.93,0.97];
+treeXs.forEach((xf,i)=>drawPineTree(W*xf, treeYBase, treeSizes[i%treeSizes.length]));
+
+// ── Distance yardage markers
+drawYardagePost(W*0.10, H*0.68, ‘50’);
+drawYardagePost(W*0.90, H*0.68, ‘50’);
+drawYardagePost(W*0.08, H*0.60, ‘100’);
+drawYardagePost(W*0.92, H*0.60, ‘100’);
+drawYardagePost(W*0.06, H*0.53, ‘150’);
+drawYardagePost(W*0.94, H*0.53, ‘150’);
+
+// ── Tee mat
+let matY=H*0.83;
+ctx.fillStyle=’#2a4a1e’;
+ctx.fillRect(W*0.25,matY,W*0.5,H*0.04);
+ctx.fillStyle=’#1a3a0e’;
+ctx.fillRect(W*0.35,matY+2,W*0.3,H*0.04-4);
+
+// ── Ground below tee
+ctx.fillStyle=’#2a1a08’;
+ctx.fillRect(0,H*0.87,W,H*0.13);
+ctx.fillStyle=’#1a1208’;
+for(let xi=0;xi<W;xi+=20){ ctx.fillRect(xi,H*0.87,10,H*0.03); }
+}
+
+// Smooth mountain range from peak array
+function drawSmoothMountains(peaks, baseY, colorMain, colorLight){
+// Main fill
+ctx.fillStyle=colorMain;
+ctx.beginPath();
+ctx.moveTo(0,baseY);
+ctx.lineTo(peaks[0].x, baseY-peaks[0].h);
+for(let i=1;i<peaks.length;i++){
+let prev=peaks[i-1], cur=peaks[i];
+let cx=(prev.x+cur.x)/2;
+ctx.bezierCurveTo(cx,baseY-prev.h, cx,baseY-cur.h, cur.x,baseY-cur.h);
+}
+ctx.lineTo(W,baseY);
+ctx.closePath();
+ctx.fill();
+
+// Highlight layer (lighter tone on upper slopes)
+ctx.fillStyle=colorLight;
+ctx.globalAlpha=0.35;
+ctx.beginPath();
+ctx.moveTo(peaks[0].x-W*0.05, baseY-peaks[0].h*0.4);
+for(let i=0;i<peaks.length;i++){
+let p=peaks[i];
+if(i===0) ctx.lineTo(p.x, baseY-p.h);
+else {
+let prev=peaks[i-1];
+let cx=(prev.x+p.x)/2;
+ctx.bezierCurveTo(cx,baseY-prev.h,cx,baseY-p.h,p.x,baseY-p.h);
+}
+ctx.lineTo(p.x+W*0.03, baseY-p.h*0.4);
+}
+ctx.closePath();
+ctx.fill();
+ctx.globalAlpha=1;
+}
+
+// Soft rolling hill silhouette
+function drawRollingHill(baseY, bumpH, color){
+ctx.fillStyle=color;
+ctx.beginPath();
+ctx.moveTo(0,baseY);
+let steps=8;
+for(let i=0;i<=steps;i++){
+let x=W*i/steps;
+let y=baseY - Math.sin(i/steps*Math.PI)*bumpH;
+i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+}
+ctx.lineTo(W,H);
+ctx.lineTo(0,H);
+ctx.closePath();
+ctx.fill();
+}
+
+// Flat wispy cloud (like reference — elongated ovals)
+function drawFlatCloud(x,y,w,h){
+ctx.globalAlpha=0.88;
+ctx.fillStyle=’#ffffff’;
+ctx.beginPath(); ctx.ellipse(px(x),py(y),w,h,0,0,Math.PI*2); ctx.fill();
+ctx.beginPath(); ctx.ellipse(px(x+w*0.4),py(y+h*0.2),w*0.6,h*0.7,0,0,Math.PI*2); ctx.fill();
+ctx.beginPath(); ctx.ellipse(px(x-w*0.35),py(y+h*0.25),w*0.55,h*0.65,0,0,Math.PI*2); ctx.fill();
+ctx.globalAlpha=1;
+}
+
+// Pine/fir tree silhouette (like reference)
+function drawPineTree(x,y,size){
+ctx.fillStyle=’#2d5a28’;
+// Three triangle tiers
+for(let tier=0;tier<3;tier++){
+let tw=size*(1-tier*0.25);
+let ty=y-tier*(size*0.55);
+ctx.beginPath();
+ctx.moveTo(px(x), py(ty-size*0.7));
+ctx.lineTo(px(x+tw), py(ty));
+ctx.lineTo(px(x-tw), py(ty));
+ctx.closePath();
+ctx.fill();
+}
+// Trunk
+ctx.fillStyle=’#4a2a10’;
+ctx.fillRect(px(x-size*0.12),py(y),Math.ceil(size*0.24),size*0.4);
+}
+
+function drawPixelCloud(x,y,r){
+ctx.globalAlpha=0.85;
+drawPixelCircle(x,y,r,C.white);
+drawPixelCircle(x+r*0.7,y+r*0.2,r*0.75,C.white);
+drawPixelCircle(x-r*0.6,y+r*0.3,r*0.65,C.white);
+drawPixelCircle(x+r*0.1,y+r*0.5,r*0.55,C.white);
+ctx.globalAlpha=1;
+}
+
+function drawPixelTree(x,y,r){
+// trunk
+drawPixelRect(x-r*0.2,y,r*0.4,r*1.2,C.brown);
+// canopy layers
+drawPixelCircle(x,y-r*0.3,r*1.1,C.grassDark);
+drawPixelCircle(x,y-r*0.8,r*0.85,C.grass);
+drawPixelCircle(x,y-r*1.2,r*0.6,C.grassLight);
+}
+
+function drawYardagePost(x,y,label){
+ctx.fillStyle=C.white;
+ctx.fillRect(px(x-1),py(y),2,12);
+ctx.fillStyle=’#3355cc’;
+ctx.fillRect(px(x-8),py(y-10),16,10);
+drawText(label,x,y-5,’#fff’,7);
+}
+
+// ── DRAW TARGETS ──
+function drawTargets(){
+TARGETS.forEach(t=>{
+// Shadow
+ctx.globalAlpha=0.25;
+drawPixelCircle(t.x+3,t.y+4,t.r+2,C.black);
+ctx.globalAlpha=1;
+// Outer ring
+drawPixelCircle(t.x,t.y,t.r+4,C.white);
+drawPixelCircle(t.x,t.y,t.r+2,t.color);
+drawPixelCircle(t.x,t.y,t.r,C.white);
+// Inner dot
+drawPixelCircle(t.x,t.y,t.r*0.35,t.color);
+// Flag pole
+ctx.fillStyle=C.darkBrown;
+ctx.fillRect(px(t.x),py(t.y-t.r-14),2,14);
+// Flag
+ctx.fillStyle=t.color;
+ctx.beginPath();
+ctx.moveTo(px(t.x+2),py(t.y-t.r-14));
+ctx.lineTo(px(t.x+10),py(t.y-t.r-10));
+ctx.lineTo(px(t.x+2),py(t.y-t.r-6));
+ctx.fill();
+// Points label
+drawText(t.pts+‘pt’,t.x,t.y+t.r+9,t.color,9);
+});
+}
+
+// ── DRAW AIMER ──
+function drawAimer(){
+let ax=aimer.x, ay=aimer.y;
+let pulse=0.6+0.4*Math.sin(frameCount*0.12);
+let r=12+4*pulse;
+ctx.globalAlpha=0.7*pulse;
+ctx.strokeStyle=’#fff’;
+ctx.lineWidth=2;
+ctx.beginPath(); ctx.arc(px(ax),py(ay),r,0,Math.PI*2); ctx.stroke();
+ctx.beginPath(); ctx.arc(px(ax),py(ay),r*0.5,0,Math.PI*2); ctx.stroke();
+// crosshair
+ctx.beginPath(); ctx.moveTo(px(ax-r*1.4),py(ay)); ctx.lineTo(px(ax-r*0.7),py(ay)); ctx.stroke();
+ctx.beginPath(); ctx.moveTo(px(ax+r*0.7),py(ay)); ctx.lineTo(px(ax+r*1.4),py(ay)); ctx.stroke();
+ctx.beginPath(); ctx.moveTo(px(ax),py(ay-r*1.4)); ctx.lineTo(px(ax),py(ay-r*0.7)); ctx.stroke();
+ctx.beginPath(); ctx.moveTo(px(ax),py(ay+r*0.7)); ctx.lineTo(px(ax),py(ay+r*1.4)); ctx.stroke();
+ctx.globalAlpha=1;
+}
+
+// ── DRAW GOLFER (PLAYER) ──
+// Pixel art golfer at bottom center, swing animation
+function drawGolfer(x, y, swingT, swingPhase){
+// swingT 0=address, 0.5=top of backswing, 1=impact/follow
+ctx.save();
+ctx.translate(px(x),py(y));
+
+let legSpread = 8;
+// Shadow
+ctx.globalAlpha=0.2;
+drawPixelCircle(0,2,16,C.black);
+ctx.globalAlpha=1;
+
+// Legs
+drawPixelRect(-legSpread,-2,7,18,C.blue); // left leg
+drawPixelRect(legSpread-7,-2,7,18,C.blue); // right leg
+// Shoes
+drawPixelRect(-legSpread-2,14,10,5,C.black);
+drawPixelRect(legSpread-5,14,10,5,C.black);
+
+// Body
+drawPixelRect(-8,-18,16,20,C.red);
+// Belt
+drawPixelRect(-8,-2,16,3,C.darkBrown);
+
+// Head
+drawPixelCircle(0,-28,10,C.skinLight);
+// Cap visor
+ctx.fillStyle=’#cc2222’;
+ctx.fillRect(-10,-37,20,8);
+ctx.fillRect(10,-34,6,4); // visor brim
+// Eyes
+ctx.fillStyle=C.black;
+ctx.fillRect(-4,-29,3,3);
+ctx.fillRect(2,-29,3,3);
+// Smile
+ctx.fillStyle=C.skinDark;
+ctx.fillRect(-3,-24,7,2);
+
+// Club & arms based on swing phase
+let shoulderY = -16;
+if(swingPhase===‘idle’||swingPhase===‘address’){
+// address position - arms down, club at ball
+drawArm(ctx, -5, shoulderY, -9, 2, 5); // left arm
+drawArm(ctx, 5, shoulderY, 9, 2, 5);  // right arm
+// Club shaft
+ctx.strokeStyle=C.darkBrown;
+ctx.lineWidth=2;
+ctx.beginPath(); ctx.moveTo(9,2); ctx.lineTo(18,18); ctx.stroke();
+// Club head
+ctx.fillStyle=C.gray;
+ctx.fillRect(15,16,8,5);
+} else if(swingPhase===‘windup’){
+// backswing
+let t=swingT;
+let armAngle = t * -2.2; // rotate arms up and back
+ctx.save();
+ctx.rotate(armAngle*0.3);
+drawArm(ctx,-4,shoulderY,-14+t*8,-2+t*-12,5);
+drawArm(ctx,4,shoulderY,-2+t*4,0+t*-8,5);
+// Club going up
+ctx.strokeStyle=C.darkBrown; ctx.lineWidth=2;
+ctx.beginPath(); ctx.moveTo(-2+t*-10,-4+t*-10); ctx.lineTo(-18*t,-20*t-2); ctx.stroke();
+ctx.fillStyle=C.gray; ctx.fillRect(-20*t-4,-22*t,7,4);
+ctx.restore();
+} else if(swingPhase===‘swing’||swingPhase===‘follow’){
+let t=swingT;
+// follow through - arms swing through to left
+ctx.save();
+let rot = -0.5+t*1.8;
+ctx.rotate(rot*0.2);
+drawArm(ctx,-5,shoulderY,-8+t*-12,-2+t*4,5);
+drawArm(ctx,4,shoulderY,6+t*-10,0+t*2,5);
+// Club following through to left
+ctx.strokeStyle=C.darkBrown; ctx.lineWidth=2;
+ctx.beginPath();
+ctx.moveTo(8-t*22,2-t*8);
+ctx.lineTo(16-t*36,18-t*28);
+ctx.stroke();
+ctx.fillStyle=C.gray; ctx.fillRect(13-t*36,15-t*28,7,4);
+ctx.restore();
+}
+
+ctx.restore();
+}
+
+function drawArm(ctx, sx, sy, ex, ey, w){
+ctx.strokeStyle=C.skinLight;
+ctx.lineWidth=w;
+ctx.lineCap=‘round’;
+ctx.beginPath();
+ctx.moveTo(px(sx),py(sy));
+ctx.lineTo(px(ex),py(ey));
+ctx.stroke();
+}
+
+// ── DRAW NPCs ──
+function drawNPC(npc){
+if(!npc) return;
+ctx.save();
+ctx.translate(px(npc.x),py(npc.y));
+if(npc.side===‘right’) ctx.scale(-1,1);
+
+let swing = npc.swingT||0;
+let phase = npc.swinging ? (swing<0.4?‘windup’:‘swing’) : ‘address’;
+
+switch(npc.type){
+case ‘pro’: drawNPCPro(phase,swing); break;
+case ‘girl’: drawNPCGirl(phase,swing); break;
+case ‘nerd’: drawNPCNerd(phase,swing); break;
+case ‘doc’: drawNPCDoc(phase,swing); break;
+}
+ctx.restore();
+}
+
+function drawNPCPro(phase,t){
+// Tall confident pro - black outfit
+drawPixelRect(-6,0,5,16,C.black);
+drawPixelRect(1,0,5,16,C.black);
+drawPixelRect(-7,14,6,5,C.darkBrown);
+drawPixelRect(2,14,6,5,C.darkBrown);
+drawPixelRect(-6,-16,12,17,C.white);
+drawPixelRect(-6,-2,12,3,C.black);
+drawPixelCircle(0,-24,9,C.skinLight);
+ctx.fillStyle=C.black; ctx.fillRect(-9,-32,18,8); ctx.fillRect(9,-30,5,3);
+ctx.fillStyle=C.black; ctx.fillRect(-3,-26,2,2); ctx.fillRect(2,-26,2,2);
+// Mustache
+ctx.fillStyle=C.brown; ctx.fillRect(-4,-22,8,2);
+if(phase===‘address’){
+drawArm(ctx,-4,-14,12,4,4);
+ctx.strokeStyle=C.gray; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(12,4); ctx.lineTo(18,16); ctx.stroke();
+ctx.fillStyle=C.gray; ctx.fillRect(15,14,7,4);
+} else {
+let side = phase===‘windup’?-1:1.5;
+drawArm(ctx,-4,-14,-10+t*side*12,-10-t*8,4);
+ctx.strokeStyle=C.gray; ctx.lineWidth=2;
+ctx.beginPath(); ctx.moveTo(-10+t*side*12,-10-t*8); ctx.lineTo(-18+t*side*20,-22-t*10); ctx.stroke();
+ctx.fillStyle=C.gray; ctx.fillRect(-22+t*side*20,-24-t*10,7,4);
+}
+}
+
+function drawNPCGirl(phase,t){
+// Young girl - pink outfit, pigtails, short
+drawPixelRect(-5,2,4,13,C.pink);
+drawPixelRect(1,2,4,13,C.pink);
+drawPixelRect(-4,13,5,5,C.white);
+drawPixelRect(0,13,5,5,C.white);
+drawPixelRect(-5,-14,10,17,C.purple);
+drawPixelCircle(0,-22,8,C.skinLight);
+// Pigtails
+ctx.fillStyle=C.orange;
+ctx.fillRect(-12,-27,5,10); ctx.fillRect(7,-27,5,10);
+ctx.fillRect(-9,-30,5,5); ctx.fillRect(4,-30,5,5);
+ctx.fillStyle=C.black; ctx.fillRect(-2,-24,2,2); ctx.fillRect(1,-24,2,2);
+ctx.fillStyle=C.pink; ctx.fillRect(-2,-20,5,2);
+if(phase===‘address’){
+drawArm(ctx,-3,-12,8,2,3);
+ctx.strokeStyle=C.pink; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(8,2); ctx.lineTo(14,13); ctx.stroke();
+ctx.fillStyle=C.pink; ctx.fillRect(11,11,6,3);
+} else {
+drawArm(ctx,-3,-12,-8-t*6,-8-t*8,3);
+ctx.strokeStyle=C.pink; ctx.lineWidth=2;
+ctx.beginPath(); ctx.moveTo(-8-t*6,-8-t*8); ctx.lineTo(-14-t*10,-18-t*10); ctx.stroke();
+ctx.fillStyle=C.pink; ctx.fillRect(-16-t*10,-20-t*10,6,3);
+}
+}
+
+function drawNPCNerd(phase,t){
+// Nerd - plaid, glasses, pocket protector
+drawPixelRect(-5,0,4,15,C.tan);
+drawPixelRect(1,0,4,15,C.tan);
+drawPixelRect(-4,13,5,5,C.brown);
+drawPixelRect(0,13,5,5,C.brown);
+// Plaid shirt body
+ctx.fillStyle=’#6688aa’; ctx.fillRect(-6,-15,12,16);
+ctx.fillStyle=’#4466aa’;
+for(let xi=-6;xi<6;xi+=3) ctx.fillRect(xi,-15,1,16);
+for(let yi=-15;yi<1;yi+=3) ctx.fillRect(-6,yi,12,1);
+// Pocket protector
+ctx.fillStyle=C.white; ctx.fillRect(1,-12,4,6);
+ctx.fillStyle=C.black; ctx.fillRect(2,-11,1,5); ctx.fillRect(4,-11,1,5);
+drawPixelCircle(0,-22,8,C.skinLight);
+// Big glasses
+ctx.strokeStyle=C.black; ctx.lineWidth=1.5;
+ctx.beginPath(); ctx.rect(-6,-26,5,4); ctx.stroke(); ctx.fillStyle=’#aaccff’; ctx.fillRect(-6,-26,5,4);
+ctx.beginPath(); ctx.rect(1,-26,5,4); ctx.stroke(); ctx.fillStyle=’#aaccff’; ctx.fillRect(1,-26,5,4);
+ctx.strokeStyle=C.black; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(-1,-24); ctx.lineTo(1,-24); ctx.stroke();
+// Hair (messy)
+ctx.fillStyle=C.brown; ctx.fillRect(-8,-30,16,6); ctx.fillRect(-9,-27,3,4); ctx.fillRect(6,-27,3,4);
+if(phase===‘address’){
+drawArm(ctx,-3,-12,9,3,3);
+ctx.strokeStyle=C.gray; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(9,3); ctx.lineTo(15,14); ctx.stroke();
+ctx.fillStyle=C.gray; ctx.fillRect(12,12,6,3);
+} else {
+drawArm(ctx,-3,-12,-6-t*8,-6-t*10,3);
+ctx.strokeStyle=C.gray; ctx.lineWidth=2;
+ctx.beginPath(); ctx.moveTo(-6-t*8,-6-t*10); ctx.lineTo(-12-t*12,-16-t*12); ctx.stroke();
+ctx.fillStyle=C.gray; ctx.fillRect(-14-t*12,-18-t*12,6,3);
+}
+}
+
+function drawNPCDoc(phase,t){
+// Old doctor - white hair, white coat, hunched
+drawPixelRect(-5,2,4,14,C.gray);
+drawPixelRect(1,2,4,14,C.gray);
+drawPixelRect(-4,14,5,5,C.black);
+drawPixelRect(0,14,5,5,C.black);
+ctx.fillStyle=C.white; ctx.fillRect(-6,-14,12,17);
+// Collar/tie
+ctx.fillStyle=C.red; ctx.fillRect(-1,-14,2,10);
+drawPixelCircle(0,-22,8,C.skinDark);
+// White hair
+ctx.fillStyle=C.white; ctx.fillRect(-8,-30,16,10); ctx.fillRect(-9,-26,4,8); ctx.fillRect(5,-26,4,8);
+// Glasses
+ctx.strokeStyle=C.brown; ctx.lineWidth=1.5;
+ctx.beginPath(); ctx.rect(-5,-25,4,3); ctx.stroke();
+ctx.beginPath(); ctx.rect(1,-25,4,3); ctx.stroke();
+ctx.beginPath(); ctx.moveTo(-1,-24); ctx.lineTo(1,-24); ctx.stroke();
+// Mustache (white bushy)
+ctx.fillStyle=C.white; ctx.fillRect(-4,-19,8,3);
+if(phase===‘address’){
+drawArm(ctx,-3,-11,9,3,4);
+ctx.strokeStyle=C.gray; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(9,3); ctx.lineTo(14,14); ctx.stroke();
+ctx.fillStyle=C.gray; ctx.fillRect(11,12,6,4);
+} else {
+drawArm(ctx,-3,-11,-5-t*8,-5-t*10,4);
+ctx.strokeStyle=C.gray; ctx.lineWidth=2;
+ctx.beginPath(); ctx.moveTo(-5-t*8,-5-t*10); ctx.lineTo(-10-t*12,-14-t*12); ctx.stroke();
+ctx.fillStyle=C.gray; ctx.fillRect(-13-t*12,-16-t*12,6,4);
+}
+}
+
+// ── DRAW BALLS ON RANGE ──
+function drawRangeBalls(){
+balls.forEach(b=>{
+drawPixelCircle(b.x,b.y,3,C.white);
+ctx.strokeStyle=C.gray; ctx.lineWidth=1;
+ctx.beginPath(); ctx.arc(px(b.x),py(b.y),3,0,Math.PI*2); ctx.stroke();
+});
+}
+
+// ── DRAW BIRDS ──
+function drawBirds(){
+birds.forEach(b=>{
+ctx.save();
+ctx.translate(px(b.x),py(b.y));
+if(b.vx<0) ctx.scale(-1,1);
+let flap=Math.sin(frameCount*0.4+b.offset)*0.5;
+// Body
+ctx.fillStyle=C.birdWhite; ctx.fillRect(-6,-2,12,5);
+// Wing
+ctx.fillStyle=C.birdGray;
+ctx.save(); ctx.rotate(flap);
+ctx.fillRect(-5,-4,10,4);
+ctx.restore();
+// Head
+ctx.fillStyle=C.birdWhite; ctx.fillRect(5,-4,5,5);
+// Beak
+ctx.fillStyle=C.orange; ctx.fillRect(10,-2,4,2);
+// Eye
+ctx.fillStyle=C.black; ctx.fillRect(7,-3,2,2);
+ctx.restore();
+});
+}
+
+// ── DRAW FOX ──
+function drawFox(){
+if(!foxOnRange) return;
+let f=foxOnRange;
+ctx.save();
+ctx.translate(px(f.x),py(f.y));
+// Fox faces the direction it’s running (vx>0 = right, flip for left)
+if(f.vx>0) ctx.scale(-1,1);
+// Body
+ctx.fillStyle=C.foxOrange; ctx.fillRect(-12,-8,24,12);
+// Tail
+ctx.fillStyle=C.foxOrange;
+ctx.beginPath(); ctx.moveTo(12,0); ctx.quadraticCurveTo(22,-12,18,-18); ctx.quadraticCurveTo(14,-20,12,-14); ctx.closePath(); ctx.fill();
+ctx.fillStyle=C.foxWhite;
+ctx.beginPath(); ctx.moveTo(15,-14); ctx.quadraticCurveTo(20,-18,18,-18); ctx.quadraticCurveTo(16,-19,14,-16); ctx.closePath(); ctx.fill();
+// Head
+ctx.fillStyle=C.foxOrange; ctx.fillRect(-6,-18,12,12);
+// Ears
+ctx.fillRect(-8,-24,6,8); ctx.fillRect(2,-24,6,8);
+ctx.fillStyle=C.pink; ctx.fillRect(-6,-23,3,5); ctx.fillRect(3,-23,3,5);
+// Snout
+ctx.fillStyle=C.foxWhite; ctx.fillRect(-4,-14,8,6);
+ctx.fillStyle=C.black; ctx.fillRect(-2,-10,2,2); ctx.fillRect(0,-12,4,2);
+// Eyes
+ctx.fillStyle=C.black; ctx.fillRect(-5,-19,2,2); ctx.fillRect(3,-19,2,2);
+// Legs running
+let runT=Math.sin(frameCount*0.3)*0.3;
+ctx.fillStyle=C.foxOrange;
+ctx.fillRect(-9+runT*4,2,4,8);
+ctx.fillRect(-3-runT*2,2,4,8);
+ctx.fillRect(2+runT*4,2,4,8);
+ctx.fillRect(7-runT*2,2,4,8);
+if(f.hasBall){
+// Ball in mouth
+ctx.fillStyle=C.white; ctx.beginPath(); ctx.arc(px(10),py(-10),4,0,Math.PI*2); ctx.fill();
+}
+ctx.restore();
+}
+
+// ── DRAW FROG ──
+function drawFrog(){
+if(!frogOnRange) return;
+let f=frogOnRange;
+ctx.save();
+ctx.translate(px(f.x),py(f.y));
+let hopArc=Math.sin((f.hopT||0)*Math.PI)*-18;
+ctx.translate(0,hopArc);
+// Shadow grows/shrinks with hop
+ctx.globalAlpha=0.2*(1-(f.hopT||0)*0.7);
+drawPixelCircle(0,18,10,C.black);
+ctx.globalAlpha=1;
+// Body
+ctx.fillStyle=C.frogGreen;
+ctx.beginPath(); ctx.ellipse(0,0,14,10,0,0,Math.PI*2); ctx.fill();
+ctx.fillStyle=’#88cc66’;
+ctx.beginPath(); ctx.ellipse(0,3,9,6,0,0,Math.PI*2); ctx.fill();
+// Back legs
+ctx.fillStyle=C.frogDark;
+let legSpread=(f.hopT||0)*0.5;
+ctx.fillRect(-20,3+legSpread*4,9,5); ctx.fillRect(11,3+legSpread*4,9,5);
+ctx.fillRect(-22,7,7,4); ctx.fillRect(15,7,7,4);
+// Front legs
+ctx.fillStyle=C.frogGreen;
+ctx.fillRect(-14,1,5,6); ctx.fillRect(9,1,5,6);
+// Eyes
+ctx.fillStyle=C.frogGreen;
+ctx.beginPath(); ctx.arc(-7,-9,5,0,Math.PI*2); ctx.fill();
+ctx.beginPath(); ctx.arc(7,-9,5,0,Math.PI*2); ctx.fill();
+ctx.fillStyle=’#111’;
+ctx.beginPath(); ctx.arc(-7,-10,2.5,0,Math.PI*2); ctx.fill();
+ctx.beginPath(); ctx.arc(7,-10,2.5,0,Math.PI*2); ctx.fill();
+ctx.fillStyle=’#fff’;
+ctx.beginPath(); ctx.arc(-6,-11,1,0,Math.PI*2); ctx.fill();
+ctx.beginPath(); ctx.arc(8,-11,1,0,Math.PI*2); ctx.fill();
+// Mouth
+ctx.strokeStyle=C.frogDark; ctx.lineWidth=1.5;
+ctx.beginPath(); ctx.arc(0,2,6,0.2,Math.PI-0.2); ctx.stroke();
+ctx.fillStyle=’#337722’; ctx.fillRect(-3,-4,2,2); ctx.fillRect(1,-4,2,2);
+// “x2 DOUBLE” label when on target
+if(!f.arriving){
+drawOutlineText(‘x2!’,0,-24,C.gold,C.black,10);
+}
+ctx.restore();
+}
+
+// ── DRAW CART ──
+function drawCart(){
+if(!cartAnim.active) return;
+let cx=cartAnim.x, cy=cartAnim.y;
+ctx.save();
+ctx.translate(px(cx),py(cy));
+if(cartAnim.dir>0) ctx.scale(-1,1);
+// Cart body
+ctx.fillStyle=C.cartYellow; ctx.fillRect(-22,-18,44,18);
+ctx.fillStyle=C.white; ctx.fillRect(-18,-14,40,12);
+ctx.fillStyle=C.cartGray; ctx.fillRect(-20,-20,44,4);
+// Wheels
+drawPixelCircle(-14,2,8,C.darkGray);
+drawPixelCircle(14,2,8,C.darkGray);
+drawPixelCircle(-14,2,4,C.gray);
+drawPixelCircle(14,2,4,C.gray);
+ctx.restore();
+}
+
+// ── DRAW BALL FLIGHT ──
+function drawBallFlight(){
+ballFlights.forEach(b=>{
+let t=b.t;
+// arc path
+let ex=lerp(W*0.5,b.tx,t);
+let ey=lerp(H*0.83,b.ty,t);
+let arc=-Math.sin(t*Math.PI)*60;
+let bx=ex, by=ey+arc;
+// shadow
+ctx.globalAlpha=0.3*(1-t*0.5);
+drawPixelCircle(ex,lerp(H*0.83,b.ty,t)+2,3,C.black);
+ctx.globalAlpha=1;
+// ball
+drawPixelCircle(bx,by,5,C.white);
+ctx.strokeStyle=’#ddd’; ctx.lineWidth=1;
+ctx.beginPath(); ctx.arc(px(bx),py(by),5,0,Math.PI*2); ctx.stroke();
+// trail
+for(let i=1;i<=4;i++){
+let tt=Math.max(0,t-i*0.04);
+let tex=lerp(W*0.5,b.tx,tt);
+let tey=lerp(H*0.83,b.ty,tt);
+let tarc=-Math.sin(tt*Math.PI)*60;
+ctx.globalAlpha=0.15*(5-i)/4;
+drawPixelCircle(tex,tey+tarc,3,C.white);
+}
+ctx.globalAlpha=1;
+}); // end ballFlights.forEach
+}
+
+// ── DRAW HUD ──
+function drawHUD(){
+// Top bar
+ctx.fillStyle=’#111’;
+ctx.globalAlpha=0.85;
+ctx.fillRect(0,0,W,48);
+ctx.globalAlpha=1;
+ctx.strokeStyle=C.gold;
+ctx.lineWidth=2;
+ctx.beginPath(); ctx.moveTo(0,48); ctx.lineTo(W,48); ctx.stroke();
+
+// Round label
+drawOutlineText(‘ROUND ‘+round+’/4’, W*0.5, 10, C.gold, C.black, 11);
+
+// Name + score (left)
+drawOutlineText((playerName||‘PLAYER’)+’: ’+totalScore, W*0.18, 30, C.neonGreen, C.black, 10);
+
+// Timer (center) — big, urgent color when low
+let t=Math.ceil(roundTimeLeft);
+let timerColor = t<=5 ? C.red : t<=10 ? C.yellow : C.white;
+let timerPulse = t<=5 && Math.floor(frameCount/8)%2===0;
+if(timerPulse){
+ctx.globalAlpha=0.4;
+drawOutlineText(t+‘s’, W*0.5, 31, timerColor, C.black, 18);
+ctx.globalAlpha=1;
+} else {
+drawOutlineText(t+‘s’, W*0.5, 31, timerColor, C.black, 18);
+}
+
+// Balls left (right)
+drawOutlineText(‘x’+ballsLeft, W*0.84, 30, C.yellow, C.black, 12);
+
+// Timer bar under HUD
+let barW=(roundTimeLeft/30)*W;
+ctx.fillStyle=’#222’; ctx.fillRect(0,48,W,4);
+ctx.fillStyle=timerColor; ctx.globalAlpha=0.8;
+ctx.fillRect(0,48,barW,4);
+ctx.globalAlpha=1;
+
+// Target legend at bottom
+let legendY=H-24;
+ctx.globalAlpha=0.75;
+ctx.fillStyle=C.black;
+ctx.fillRect(0,legendY-10,W,34);
+ctx.globalAlpha=1;
+let lx=W*0.1;
+[{c:C.red,l:‘RED=1’},{c:C.yellow,l:‘YLW=2’},{c:C.green,l:‘GRN=3’},{c:C.blue,l:‘BLU=5’}].forEach((item,i)=>{
+drawPixelCircle(lx+i*W*0.24,legendY+5,5,item.c);
+drawText(item.l,lx+14+i*W*0.24,legendY+5,item.c,9);
+});
+}
+
+// ── DRAW FLOAT TEXTS ──
+function drawFloatTexts(){
+floatTexts.forEach(f=>{
+ctx.globalAlpha=f.life;
+drawOutlineText(f.txt,f.x,f.y,f.color,C.black,f.size);
+ctx.globalAlpha=1;
+});
+}
+
+// ── TITLE SCREEN ──
+function updateTitleDemo(){
+// Update flying balls
+titleDemo.balls = titleDemo.balls.filter(b=>{
+b.t += 0.03;
+if(b.t>=1){
+// flash on target
+titleDemo.hitFlashes.push({x:b.tx, y:b.ty, color:b.color, life:1.0});
+return false;
+}
+return true;
+});
+titleDemo.hitFlashes = titleDemo.hitFlashes.filter(f=>{ f.life-=0.04; return f.life>0; });
+
+// Golfer swing cycle
+if(titleDemo.swingPhase===‘idle’){
+titleDemo.idleTimer–;
+if(titleDemo.idleTimer<=0){
+titleDemo.swingPhase=‘windup’;
+titleDemo.swingT=0;
+}
+} else {
+titleDemo.swingT += 0.055;
+if(titleDemo.swingPhase===‘windup’ && titleDemo.swingT>=1){
+titleDemo.swingPhase=‘swing’; titleDemo.swingT=0;
+// Fire ball at current target
+let tgt = titleDemo.targets[titleDemo.currentTarget];
+titleDemo.balls.push({t:0, tx:tgt.x, ty:tgt.y, color:tgt.color});
+titleDemo.currentTarget = (titleDemo.currentTarget+1) % titleDemo.targets.length;
+} else if(titleDemo.swingPhase===‘swing’ && titleDemo.swingT>=1){
+titleDemo.swingPhase=‘follow’; titleDemo.swingT=0;
+} else if(titleDemo.swingPhase===‘follow’ && titleDemo.swingT>=1){
+titleDemo.swingPhase=‘idle’; titleDemo.swingT=0;
+titleDemo.idleTimer = 60 + Math.random()*60;
+}
+}
+}
+
+function drawTitleDemoBall(b){
+let t=b.t;
+let sx=W/2, sy=H*0.76;
+let ex=b.tx, ey=b.ty;
+let bx=lerp(sx,ex,t);
+let by=lerp(sy,ey,t) - Math.sin(t*Math.PI)*55;
+ctx.globalAlpha=0.85;
+drawPixelCircle(bx,by,5,C.white);
+ctx.strokeStyle=’#ccc’; ctx.lineWidth=1;
+ctx.beginPath(); ctx.arc(px(bx),py(by),5,0,Math.PI*2); ctx.stroke();
+// trail
+for(let i=1;i<=3;i++){
+let tt=Math.max(0,t-i*0.05);
+let tx2=lerp(sx,ex,tt), ty2=lerp(sy,ey,tt)-Math.sin(tt*Math.PI)*55;
+ctx.globalAlpha=0.2*(4-i)/3;
+drawPixelCircle(tx2,ty2,3,C.white);
+}
+ctx.globalAlpha=1;
+}
+
+function drawTitle(){
+// BG
+let sg=ctx.createLinearGradient(0,0,0,H);
+sg.addColorStop(0,’#0a1a0a’); sg.addColorStop(1,’#1a3a0e’);
+ctx.fillStyle=sg; ctx.fillRect(0,0,W,H);
+ctx.strokeStyle=’#1a4a1a’; ctx.lineWidth=1;
+for(let xi=0;xi<W;xi+=24){ctx.beginPath();ctx.moveTo(xi,0);ctx.lineTo(xi,H);ctx.stroke();}
+for(let yi=0;yi<H;yi+=24){ctx.beginPath();ctx.moveTo(0,yi);ctx.lineTo(W,yi);ctx.stroke();}
+
+// Mountains silhouette
+ctx.fillStyle=’#1a2a18’;
+ctx.beginPath(); ctx.moveTo(0,H*0.55);
+[0,0.15,0.28,0.42,0.56,0.70,0.84,1.0].forEach((xf,i)=>{
+let yf=i%2===0?H*0.42:H*0.50;
+ctx.lineTo(W*xf, yf);
+});
+ctx.lineTo(W,H*0.55); ctx.closePath(); ctx.fill();
+
+// Grass ground strip
+ctx.fillStyle=’#1a3a12’;
+ctx.fillRect(0,H*0.80,W,H*0.20);
+ctx.fillStyle=’#22441a’;
+ctx.fillRect(0,H*0.80,W,8);
+
+// Title logo
+let pulse=0.92+0.08*Math.sin(frameCount*0.07);
+ctx.save(); ctx.translate(W/2, H*0.12); ctx.scale(pulse,pulse);
+ctx.shadowColor=C.neonGreen; ctx.shadowBlur=22;
+drawOutlineText(‘DRIVERZ’,0,0,C.gold,C.black,54);
+ctx.shadowBlur=0; ctx.restore();
+
+// Demo targets on title screen
+updateTitleDemo();
+titleDemo.targets.forEach((t,i)=>{
+// Flash on hit
+let flash = titleDemo.hitFlashes.find(f=>f.x===t.x&&f.y===t.y);
+let fr = flash ? flash.life : 0;
+ctx.globalAlpha = 0.5 + fr*0.5;
+drawPixelCircle(t.x,t.y,t.r+4,C.white);
+drawPixelCircle(t.x,t.y,t.r+2,t.color);
+drawPixelCircle(t.x,t.y,t.r,C.white);
+drawPixelCircle(t.x,t.y,t.r*0.35,t.color);
+// flag
+ctx.fillStyle=’#555’; ctx.fillRect(px(t.x),py(t.y-t.r-12),2,12);
+ctx.fillStyle=t.color;
+ctx.beginPath();
+ctx.moveTo(px(t.x+2),py(t.y-t.r-12));
+ctx.lineTo(px(t.x+11),py(t.y-t.r-7));
+ctx.lineTo(px(t.x+2),py(t.y-t.r-3));
+ctx.fill();
+// Burst on hit
+if(fr>0){
+ctx.globalAlpha=fr*0.9;
+for(let a=0;a<6;a++){
+let ang=a/6*Math.PI*2;
+let br=(1-fr)*22;
+ctx.fillStyle=t.color;
+ctx.beginPath(); ctx.arc(px(t.x+Math.cos(ang)*br),py(t.y+Math.sin(ang)*br),3,0,Math.PI*2); ctx.fill();
+}
+}
+ctx.globalAlpha=1;
+});
+
+// Demo balls in flight
+titleDemo.balls.forEach(b=>drawTitleDemoBall(b));
+
+// Golfer swinging on title
+let sp=‘address’;
+if(titleDemo.swingPhase===‘windup’) sp=‘windup’;
+else if(titleDemo.swingPhase===‘swing’||titleDemo.swingPhase===‘follow’) sp=‘swing’;
+drawGolfer(W/2, H*0.76, titleDemo.swingT, sp);
+
+// ── NAME BOX (inline under subtitle) ──
+drawOutlineText(‘DRIVING RANGE CHALLENGE’,W/2,H*0.27,C.neonGreen,C.black,13);
+
+// Name label + box
+drawOutlineText(‘YOUR NAME:’,W*0.22,H*0.345,C.white,C.black,11,‘center’);
+let boxX=W*0.38, boxY=H*0.325, boxW=W*0.52, boxH=32;
+ctx.fillStyle=nameInputActive?’#0a280a’:’#061206’;
+ctx.strokeStyle=nameInputActive?C.neonGreen:C.gold;
+ctx.lineWidth=2;
+ctx.fillRect(boxX,boxY,boxW,boxH);
+ctx.strokeRect(boxX,boxY,boxW,boxH);
+let cursor=nameInputActive&&Math.floor(frameCount/18)%2?’|’:’’;
+drawOutlineText((playerName||’’)+cursor, boxX+boxW/2, boxY+boxH/2, C.gold, C.black, 16);
+
+// Tap hint near box
+if(!nameInputActive && playerName.length===0){
+let tp=Math.floor(frameCount/22)%2;
+ctx.globalAlpha=tp?0.9:0.4;
+drawText(‘tap to enter name’,boxX+boxW/2,boxY+boxH+11,C.gray,9);
+ctx.globalAlpha=1;
+}
+
+// TAP TO START / TEE OFF
+let tapPulse=Math.floor(frameCount/25)%2;
+let startLabel = playerName.trim().length>0 ? ‘TEE OFF, ‘+(playerName.trim())+’!’ : ‘TAP TO START’;
+let startColor = playerName.trim().length>0 ? C.neonGreen : C.white;
+if(tapPulse) drawOutlineText(startLabel,W/2,H*0.895,startColor,C.black,16);
+else drawOutlineText(startLabel,W/2,H*0.895,C.gold,C.black,16);
+
+drawOutlineText(‘4 ROUNDS · HALFTIME BONUS · CHAOS HAZARDS’,W/2,H*0.945,C.gray,C.black,10);
+
+// Leaderboard panel bottom-right of title
+drawLeaderboard(W*0.02, H*0.385, W*0.34, H*0.38, ‘TOP SCORES’);
+}
+
+// ── ROUND INTRO ──
+function drawRoundIntro(){
+ctx.fillStyle=‘rgba(0,0,0,0.82)’; ctx.fillRect(0,0,W,H);
+let ballCount=ballsPerRound[round-1];
+let names=[‘WARMUP’,‘FRONT 9’,‘BACK 9’,‘FINAL ROUND’];
+drawOutlineText(names[round-1],W/2,H*0.3,C.gold,C.black,28);
+drawOutlineText(‘ROUND ‘+round+’ OF 4’,W/2,H*0.42,C.white,C.black,18);
+drawOutlineText(ballCount+’ BALLS IN THE BUCKET’,W/2,H*0.54,C.yellow,C.black,15);
+if(round===3){
+drawOutlineText(‘⚡ HALFTIME BONUS AFTER THIS! ⚡’,W/2,H*0.65,C.neonGreen,C.black,13);
+}
+let tapPulse=Math.floor(frameCount/20)%2;
+if(tapPulse) drawOutlineText(‘TAP TO TEE OFF’,W/2,H*0.78,C.white,C.black,16);
+}
+
+// ── ROUND END ──
+function drawRoundEnd(){
+ctx.fillStyle=‘rgba(0,0,20,0.88)’; ctx.fillRect(0,0,W,H);
+drawOutlineText(‘ROUND ‘+round+’ COMPLETE!’,W/2,H*0.28,C.gold,C.black,22);
+drawOutlineText(’ROUND SCORE: ’+roundScore,W/2,H*0.40,C.neonGreen,C.black,18);
+drawOutlineText(’TOTAL: ’+totalScore,W/2,H*0.52,C.white,C.black,16);
+// Grade
+let pct=ballsPerRound[round-1]>0?roundScore/ballsPerRound[round-1]:0;
+let grade=pct>4?‘EAGLE!’:pct>2.5?‘BIRDIE!’:pct>1.5?‘PAR’:pct>0.8?‘BOGEY’:‘DOUBLE BOGEY’;
+let gc=pct>4?C.gold:pct>2.5?C.neonGreen:pct>1.5?C.white:pct>0.8?C.yellow:C.red;
+drawOutlineText(grade,W/2,H*0.63,gc,C.black,26);
+let tapPulse=Math.floor(frameCount/20)%2;
+if(tapPulse) drawOutlineText(‘TAP TO CONTINUE’,W/2,H*0.78,C.white,C.black,14);
+}
+
+// ── GAME OVER ──
+function drawGameOver(){
+ctx.fillStyle=‘rgba(0,0,0,0.94)’; ctx.fillRect(0,0,W,H);
+
+// Title
+drawOutlineText(‘GAME OVER’,W/2,H*0.07,C.red,C.black,30);
+
+// Score
+let isNewHigh = totalScore>localHighScore && totalScore>0;
+if(isNewHigh){
+let hp=Math.floor(frameCount/15)%2;
+drawOutlineText(‘NEW HIGH SCORE!’,W/2,H*0.155,hp?C.gold:C.yellow,C.black,14);
+}
+drawOutlineText(’’+totalScore,W/2,H*0.27,C.white,C.black,52);
+
+// Rank
+let rank=totalScore>200?‘PRO GOLFER’:totalScore>120?‘CLUB PLAYER’:totalScore>60?‘WEEKEND WARRIOR’:‘DRIVING RANGE ROOKIE’;
+drawOutlineText(rank,W/2,H*0.37,C.neonGreen,C.black,13);
+
+// Leaderboard
+drawLeaderboard(W*0.04, H*0.42, W*0.92, H*0.34, ‘LEADERBOARD’);
+
+// SMS Challenge button
+ctx.fillStyle=’#003a00’;
+ctx.strokeStyle=C.neonGreen; ctx.lineWidth=2;
+ctx.fillRect(W*0.06,H*0.785,W*0.88,40);
+ctx.strokeRect(W*0.06,H*0.785,W*0.88,40);
+drawOutlineText(‘CHALLENGE A FRIEND  (SMS)’,W/2,H*0.785+20,C.neonGreen,C.black,13);
+
+// Play again
+let tapPulse=Math.floor(frameCount/25)%2;
+if(tapPulse) drawOutlineText(‘TAP ANYWHERE TO PLAY AGAIN’,W/2,H*0.915,C.white,C.black,12);
+else drawOutlineText(‘TAP ANYWHERE TO PLAY AGAIN’,W/2,H*0.915,C.gold,C.black,12);
+
+drawOutlineText(’LOCAL BEST: ’+localHighScore,W/2,H*0.96,C.gray,C.black,10);
+}
+
+// ── HALFTIME INTRO ──
+function drawHalftimeIntro(){
+ctx.fillStyle=‘rgba(0,20,0,0.90)’; ctx.fillRect(0,0,W,H);
+let pulse=0.9+0.1*Math.sin(frameCount*0.1);
+ctx.save(); ctx.translate(W/2,H*0.2); ctx.scale(pulse,pulse);
+ctx.shadowColor=C.neonGreen; ctx.shadowBlur=20;
+drawOutlineText(‘⛳ HALFTIME!’,0,0,C.gold,C.black,32);
+ctx.shadowBlur=0;
+ctx.restore();
+drawOutlineText(‘PUTTING FRENZY!’,W/2,H*0.34,C.neonGreen,C.black,14);
+drawOutlineText(‘SWIPE UP from golfer to putt’,W/2,H*0.44,C.white,C.black,13);
+drawOutlineText(‘Rapid fire — no cooldown!’,W/2,H*0.51,C.yellow,C.black,12);
+drawOutlineText(‘SMALL hole = 3pts  BIG = 1pt’,W/2,H*0.58,C.white,C.black,11);
+drawOutlineText(‘RED small = 3pts  (hardest!)’,W/2,H*0.64,C.red,C.black,11);
+drawOutlineText(‘Hit frog -1  bunny -2  gator -3’,W/2,H*0.71,C.orange,C.black,11);
+let tapPulse=Math.floor(frameCount/20)%2;
+if(tapPulse) drawOutlineText(‘TAP TO START PUTTING!’,W/2,H*0.85,C.white,C.black,16);
+}
+
+// ── HALFTIME GAME ──
+function initHalftime(){
+putt.score=0;
+putt.timeLeft=30;
+putt.critters=[];
+putt.balls=[];
+putt.activeBalls=[];   // multiple balls in flight at once
+putt.putterAngle=0;
+putt.swingAnim=0;      // visual only
+// Swipe tracking
+putt.touchStartY=null;
+putt.touchStartX=null;
+putt.lastSwipeTime=0;
+placeHole();
+// Spawn initial critters
+for(let i=0;i<2;i++) spawnCritter();
+}
+
+function placeHole(){
+putt.holX=rnd(W*0.18,W*0.82);
+putt.holY=rnd(H*0.18,H*0.62);
+// Phase: 0=small(3pts), 1=big(1pt), 2=small red(3pts), 3=gone
+putt.holePhase=0;
+putt.holeTimer=0;
+putt.holeR=8; // starts small
+}
+
+function spawnCritter(){
+if(putt.critters.length>=6) return;
+let types=[‘frog’,‘bunny’,‘gator’];
+// weight: more frogs, fewer gators
+let weights=[0.5,0.35,0.15];
+let r=Math.random(), cum=0, type=‘frog’;
+for(let i=0;i<types.length;i++){ cum+=weights[i]; if(r<cum){type=types[i];break;} }
+let cr={
+type,
+x:rnd(W*0.08,W*0.92),
+y:rnd(H*0.15,H*0.72),
+vx:rnd(-1.2,1.2)||(Math.random()<0.5?0.6:-0.6),
+vy:rnd(-0.8,0.8)||(Math.random()<0.5?0.5:-0.5),
+r: type===‘gator’?22:type===‘bunny’?12:13,
+hopT:0, hopTimer:rnd(30,80),
+penalty: type===‘frog’?-1:type===‘bunny’?-2:-3,
+hit:false
+};
+putt.critters.push(cr);
+}
+
+function updateHalftime(dt){
+putt.timeLeft=Math.max(0,putt.timeLeft-dt);
+if(putt.timeLeft<=0){ state=‘halftime_result’; return; }
+
+// ── Hole phase cycle
+putt.holeTimer+=dt;
+// small(3pts)=2.5s, big(1pt)=2s, small red(3pts)=1.5s, gone=0.4s
+let phaseDurs=[2.5,2.0,1.5,0.4];
+if(putt.holeTimer>phaseDurs[putt.holePhase]){
+putt.holePhase=(putt.holePhase+1)%4;
+putt.holeTimer=0;
+if(putt.holePhase===3) setTimeout(()=>placeHole(),400);
+putt.holeR = (putt.holePhase===1)?20:10; // big on phase 1
+}
+
+// ── Putter visual anim
+if(putt.swingAnim>0){ putt.swingAnim=Math.max(0,putt.swingAnim-dt*5); }
+
+// ── Active balls movement (rapid fire — many balls at once)
+putt.activeBalls=putt.activeBalls.filter(b=>{
+b.x+=b.vx; b.y+=b.vy;
+b.vx*=0.97; b.vy*=0.97;
+// Wall bounce
+if(b.x<12){b.x=12;b.vx=Math.abs(b.vx);}
+if(b.x>W-12){b.x=W-12;b.vx=-Math.abs(b.vx);}
+if(b.y<H*0.09){b.y=H*0.09;b.vy=Math.abs(b.vy);}
+if(b.y>H*0.93){b.y=H*0.93;b.vy=-Math.abs(b.vy);}
+
+```
+// ── Check critter collisions
+putt.critters.forEach(cr=>{
+  if(cr.hit) return;
+  if(dist(b.x,b.y,cr.x,cr.y)<cr.r+5){
+    cr.hit=true;
+    let pen=cr.penalty;
+    totalScore=Math.max(0,totalScore+pen);
+    let labels={frog:'RIBBIT! -1',bunny:'HOP! -2',gator:'CHOMP! -3'};
+    let cols={frog:C.frogGreen,bunny:'#ffaacc',gator:'#558833'};
+    addFloat(cr.x,cr.y-10,labels[cr.type],cols[cr.type],15);
+    // bounce ball off critter
+    let ang=Math.atan2(b.y-cr.y,b.x-cr.x);
+    b.vx=Math.cos(ang)*5; b.vy=Math.sin(ang)*5;
+    setTimeout(()=>{ cr.hit=false; cr.x=rnd(W*0.1,W*0.9); cr.y=rnd(H*0.15,H*0.7); },1200);
+  }
+});
+
+// ── Check hole
+if(putt.holePhase!==3){
+  let pts=putt.holePhase===1?1:3; // big=1pt, small=3pts
+  if(dist(b.x,b.y,putt.holX,putt.holY)<putt.holeR+5){
+    putt.score++;
+    totalScore+=pts;
+    let hcol=putt.holePhase===2?C.red:putt.holePhase===1?C.yellow:C.white;
+    addFloat(putt.holX,putt.holY-10,'+'+pts+' PUTT!',hcol,20);
+    placeHole();
+    return false; // remove ball
+  }
+}
+
+// Stop when slow
+let spd=Math.hypot(b.vx,b.vy);
+if(spd<0.5){ putt.balls.push({x:b.x,y:b.y}); return false; }
+return true;
+```
+
+});
+
+// ── Move critters
+putt.critters.forEach(cr=>{
+if(cr.hit) return;
+if(cr.type===‘bunny’){
+// hop: move in bursts
+cr.hopTimer–;
+if(cr.hopTimer<=0){
+cr.hopT=1.0;
+cr.vx=rnd(-2.5,2.5)||(Math.random()<0.5?1:-1);
+cr.vy=rnd(-2.0,2.0)||(Math.random()<0.5?1:-1);
+cr.hopTimer=rnd(30,80);
+}
+if(cr.hopT>0){ cr.hopT=Math.max(0,cr.hopT-0.06); cr.x+=cr.vx; cr.y+=cr.vy; }
+} else {
+cr.x+=cr.vx; cr.y+=cr.vy;
+}
+if(cr.x<20||cr.x>W-20) cr.vx*=-1;
+if(cr.y<H*0.12||cr.y>H*0.88) cr.vy*=-1;
+cr.x=clamp(cr.x,20,W-20); cr.y=clamp(cr.y,H*0.12,H*0.88);
+});
+
+// Spawn critters over time
+if(Math.random()<0.005 && putt.timeLeft>5) spawnCritter();
+}
+
+function doSwipeputt(swipeAngle, swipeSpeed){
+// Fire a ball from golfer toward the direction of the swipe
+let speed=clamp(swipeSpeed*0.15, 4, 14);
+putt.activeBalls.push({
+x:W/2, y:H*0.84,
+vx:Math.cos(swipeAngle)*speed,
+vy:Math.sin(swipeAngle)*speed
+});
+putt.swingAnim=1.0; // trigger visual
+}
+
+function drawHalftimeGame(){
+// BG
+let bg=ctx.createLinearGradient(0,0,0,H);
+bg.addColorStop(0,’#0d2010’); bg.addColorStop(1,’#071408’);
+ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+
+// Course stripes
+for(let yi=H*0.09;yi<H*0.93;yi+=18){
+ctx.fillStyle=(Math.floor(yi/18)%2===0)?’#1a3a1a’:’#163016’;
+ctx.fillRect(8,yi,W-16,18);
+}
+// Border
+ctx.strokeStyle=’#44aa44’; ctx.lineWidth=3;
+ctx.strokeRect(8,H*0.09,W-16,H*0.84);
+
+// Sand traps
+ctx.fillStyle=’#c8a850’;
+ctx.beginPath(); ctx.ellipse(W*0.25,H*0.45,28,18,0,0,Math.PI*2); ctx.fill();
+ctx.beginPath(); ctx.ellipse(W*0.75,H*0.35,22,14,0,0,Math.PI*2); ctx.fill();
+ctx.beginPath(); ctx.ellipse(W*0.55,H*0.6,18,12,0,0,Math.PI*2); ctx.fill();
+
+// Water hazard
+ctx.fillStyle=’#1a4a88’;
+ctx.beginPath(); ctx.ellipse(W*0.72,H*0.6,26,16,0.3,0,Math.PI*2); ctx.fill();
+ctx.fillStyle=’#2266aa’;
+ctx.beginPath(); ctx.ellipse(W*0.70,H*0.58,16,9,0.3,0,Math.PI*2); ctx.fill();
+
+// Hole
+if(putt.holePhase!==3){
+let hc=[C.white,C.yellow,C.red][Math.min(putt.holePhase,2)];
+let hr=putt.holeR;
+// glow
+ctx.shadowColor=hc; ctx.shadowBlur=16;
+ctx.fillStyle=hc; ctx.globalAlpha=0.35;
+ctx.beginPath(); ctx.arc(px(putt.holX),py(putt.holY),hr+8,0,Math.PI*2); ctx.fill();
+ctx.globalAlpha=1; ctx.shadowBlur=0;
+// hole
+ctx.fillStyle=’#000’;
+ctx.beginPath(); ctx.arc(px(putt.holX),py(putt.holY),hr,0,Math.PI*2); ctx.fill();
+ctx.strokeStyle=hc; ctx.lineWidth=2.5;
+ctx.beginPath(); ctx.arc(px(putt.holX),py(putt.holY),hr,0,Math.PI*2); ctx.stroke();
+// flag
+ctx.fillStyle=’#555’; ctx.fillRect(px(putt.holX),py(putt.holY-hr-14),2,14);
+ctx.fillStyle=hc;
+ctx.beginPath();
+ctx.moveTo(px(putt.holX+2),py(putt.holY-hr-14));
+ctx.lineTo(px(putt.holX+12),py(putt.holY-hr-9));
+ctx.lineTo(px(putt.holX+2),py(putt.holY-hr-4));
+ctx.fill();
+// pts label
+let pts=putt.holePhase===1?‘1pt’:‘3pts’;
+drawOutlineText(pts,putt.holX,putt.holY+hr+12,hc,C.black,10);
+}
+
+// Dead balls on course
+putt.balls.forEach(b=>{ drawPixelCircle(b.x,b.y,3,’#ddd’); });
+
+// Active flying balls
+putt.activeBalls.forEach(b=>{
+drawPixelCircle(b.x,b.y,5,C.white);
+ctx.strokeStyle=’#aaa’; ctx.lineWidth=1;
+ctx.beginPath(); ctx.arc(px(b.x),py(b.y),5,0,Math.PI*2); ctx.stroke();
+});
+
+// ── CRITTERS ──
+putt.critters.forEach(cr=>{
+if(cr.hit){ ctx.globalAlpha=0.3; }
+ctx.save();
+ctx.translate(px(cr.x),py(cr.y));
+
+```
+if(cr.type==='frog'){
+  // Proper pixel frog
+  let bop=Math.abs(Math.sin(frameCount*0.18+cr.x))*5;
+  ctx.translate(0,-bop);
+  // Back legs (spread wide)
+  ctx.fillStyle=C.frogDark;
+  ctx.fillRect(-22,4,10,6); ctx.fillRect(12,4,10,6); // thighs
+  ctx.fillRect(-26,8,8,5);  ctx.fillRect(18,8,8,5);  // lower legs
+  ctx.fillRect(-28,12,10,3);ctx.fillRect(18,12,10,3); // feet
+  // Body
+  ctx.fillStyle=C.frogGreen;
+  ctx.beginPath(); ctx.ellipse(0,0,14,11,0,0,Math.PI*2); ctx.fill();
+  // Belly
+  ctx.fillStyle='#88cc66';
+  ctx.beginPath(); ctx.ellipse(0,3,9,7,0,0,Math.PI*2); ctx.fill();
+  // Front legs
+  ctx.fillStyle=C.frogGreen;
+  ctx.fillRect(-16,0,6,8); ctx.fillRect(10,0,6,8);
+  ctx.fillRect(-17,7,7,3); ctx.fillRect(10,7,7,3);
+  // Eye bulges
+  ctx.fillStyle=C.frogGreen;
+  ctx.beginPath(); ctx.ellipse(-7,-10,6,5,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(7,-10,6,5,0,0,Math.PI*2); ctx.fill();
+  // Pupils
+  ctx.fillStyle='#111';
+  ctx.beginPath(); ctx.arc(-7,-11,2.5,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(7,-11,2.5,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.arc(-6,-12,1,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(8,-12,1,0,Math.PI*2); ctx.fill();
+  // Mouth
+  ctx.strokeStyle='#337722'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.arc(0,3,7,0.15,Math.PI-0.15); ctx.stroke();
+  // Nostrils
+  ctx.fillStyle='#337722';
+  ctx.fillRect(-3,-4,2,2); ctx.fillRect(1,-4,2,2);
+
+} else if(cr.type==='bunny'){
+  let hopY=cr.hopT>0?-Math.sin(cr.hopT*Math.PI)*14:0;
+  ctx.translate(0,hopY);
+  // Body
+  ctx.fillStyle='#f0e8e0';
+  ctx.beginPath(); ctx.ellipse(0,2,10,12,0,0,Math.PI*2); ctx.fill();
+  // Head
+  ctx.beginPath(); ctx.ellipse(0,-12,8,9,0,0,Math.PI*2); ctx.fill();
+  // Ears
+  ctx.fillRect(-6,-26,5,16); ctx.fillRect(1,-26,5,16);
+  ctx.fillStyle='#f0a0b0';
+  ctx.fillRect(-5,-25,3,13); ctx.fillRect(2,-25,3,13);
+  // Eye
+  ctx.fillStyle='#ff5577';
+  ctx.beginPath(); ctx.arc(-3,-13,2.5,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(3,-13,2.5,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.arc(-2,-14,1,0,Math.PI*2); ctx.fill();
+  // Nose
+  ctx.fillStyle='#f08090';
+  ctx.beginPath(); ctx.arc(0,-10,2,0,Math.PI*2); ctx.fill();
+  // Whiskers
+  ctx.strokeStyle='#ccc'; ctx.lineWidth=0.8;
+  ctx.beginPath(); ctx.moveTo(-8,-10); ctx.lineTo(-1,-10); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(1,-10); ctx.lineTo(8,-10); ctx.stroke();
+  // Tail
+  ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.arc(0,12,5,0,Math.PI*2); ctx.fill();
+  // Feet
+  ctx.fillStyle='#f0e8e0';
+  ctx.beginPath(); ctx.ellipse(-6,13,6,4,0.4,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(6,13,6,4,-0.4,0,Math.PI*2); ctx.fill();
+
+} else if(cr.type==='gator'){
+  // Alligator - long and scary
+  let swim=Math.sin(frameCount*0.1+cr.x*0.05)*3;
+  ctx.translate(0,swim);
+  // Tail
+  ctx.fillStyle='#446633';
+  ctx.beginPath();
+  ctx.moveTo(22,0); ctx.lineTo(40,-4); ctx.lineTo(44,0); ctx.lineTo(40,4); ctx.closePath(); ctx.fill();
+  // Body
+  ctx.fillStyle='#558844';
+  ctx.beginPath(); ctx.ellipse(0,0,22,11,0,0,Math.PI*2); ctx.fill();
+  // Scales on back
+  ctx.fillStyle='#446633';
+  for(let si=-14;si<=14;si+=7){
+    ctx.beginPath(); ctx.moveTo(si,-8); ctx.lineTo(si+4,-14); ctx.lineTo(si+8,-8); ctx.closePath(); ctx.fill();
+  }
+  // Legs
+  ctx.fillStyle='#446633';
+  ctx.fillRect(-16,8,7,8); ctx.fillRect(8,8,7,8);
+  ctx.fillRect(-18,14,8,4); ctx.fillRect(8,14,8,4); // feet
+  // Snout
+  ctx.fillStyle='#558844';
+  ctx.beginPath(); ctx.ellipse(-28,0,10,7,0,0,Math.PI*2); ctx.fill();
+  // Teeth
+  ctx.fillStyle='#fff';
+  for(let ti=0;ti<4;ti++){
+    ctx.fillRect(-33+ti*4,-3,2,5);
+    ctx.fillRect(-33+ti*4,0,2,4);
+  }
+  // Eyes (on top of head)
+  ctx.fillStyle='#88ff44';
+  ctx.beginPath(); ctx.arc(-14,-10,5,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(-6,-10,5,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#111';
+  ctx.beginPath(); ctx.arc(-14,-10,2.5,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(-6,-10,2.5,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.arc(-13,-11,1,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(-5,-11,1,0,Math.PI*2); ctx.fill();
+  // Nostril bumps
+  ctx.fillStyle='#446633';
+  ctx.beginPath(); ctx.arc(-32,-3,3,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(-26,-3,3,0,Math.PI*2); ctx.fill();
+}
+
+ctx.restore();
+ctx.globalAlpha=1;
+
+// Penalty label under critter
+let penLabels={frog:'-1',bunny:'-2',gator:'-3'};
+let penCols={frog:C.frogGreen,bunny:'#ff88aa',gator:'#88ff44'};
+drawText(penLabels[cr.type],cr.x,cr.y+cr.r+9,penCols[cr.type],9);
+```
+
+});
+
+// ── Golfer putter ──
+ctx.save();
+ctx.translate(W/2,H*0.85);
+drawPixelRect(-5,-2,4,14,C.blue); drawPixelRect(1,-2,4,14,C.blue);
+drawPixelRect(-6,10,6,4,C.black); drawPixelRect(1,10,6,4,C.black);
+drawPixelRect(-5,-16,10,15,C.red);
+drawPixelCircle(0,-24,8,C.skinLight);
+ctx.fillStyle=’#cc2222’; ctx.fillRect(-8,-31,16,7);
+// Putter arm — animate on swingAnim
+let pa=-0.3+putt.swingAnim*1.2;
+ctx.save(); ctx.rotate(pa);
+drawArm(ctx,-3,-13,0,2,4); drawArm(ctx,3,-13,0,2,4);
+ctx.strokeStyle=’#bbb’; ctx.lineWidth=3;
+ctx.beginPath(); ctx.moveTo(0,2); ctx.lineTo(0,20); ctx.stroke();
+ctx.fillStyle=’#aaa’; ctx.fillRect(-9,18,18,5);
+ctx.restore();
+ctx.restore();
+
+// ── Swipe arrow hint ──
+if(putt.activeBalls.length===0){
+let pulse=0.5+0.5*Math.sin(frameCount*0.15);
+ctx.globalAlpha=pulse*0.8;
+ctx.strokeStyle=C.neonGreen; ctx.lineWidth=2;
+// Arrow pointing up toward hole
+let ang=Math.atan2(putt.holY-(H*0.85),putt.holX-W/2);
+let arrowLen=40;
+let ax=W/2+Math.cos(ang)*50, ay=H*0.85+Math.sin(ang)*50;
+ctx.beginPath(); ctx.moveTo(W/2,H*0.85); ctx.lineTo(ax,ay); ctx.stroke();
+// arrowhead
+let ha=0.4;
+ctx.beginPath();
+ctx.moveTo(ax,ay);
+ctx.lineTo(ax-Math.cos(ang-ha)*12,ay-Math.sin(ang-ha)*12);
+ctx.lineTo(ax-Math.cos(ang+ha)*12,ay-Math.sin(ang+ha)*12);
+ctx.closePath(); ctx.fillStyle=C.neonGreen; ctx.fill();
+ctx.globalAlpha=1;
+}
+
+// ── HUD ──
+ctx.fillStyle=‘rgba(0,0,0,0.82)’; ctx.fillRect(0,0,W,H*0.09);
+drawOutlineText(‘PUTTING FRENZY!’,W/2,11,C.gold,C.black,13);
+drawOutlineText(‘PUTTS:’+putt.score,W*0.15,27,C.neonGreen,C.black,11);
+drawOutlineText(Math.ceil(putt.timeLeft)+‘s’,W*0.5,27,putt.timeLeft<10?C.red:C.white,C.black,16);
+drawOutlineText(’+’+totalScore,W*0.85,27,C.yellow,C.black,11);
+
+// Hole legend
+ctx.fillStyle=‘rgba(0,0,0,0.7)’; ctx.fillRect(0,H*0.93,W,H*0.07);
+drawText(‘SMALL=3pts’,W*0.25,H*0.965,’#fff’,9);
+drawText(‘BIG=1pt’,W*0.5,H*0.965,C.yellow,9);
+drawText(‘RED SMALL=3pts’,W*0.78,H*0.965,C.red,9);
+
+drawFloatTexts();
+}
+
+function drawHalftimeResult(){
+ctx.fillStyle=‘rgba(0,20,0,0.92)’; ctx.fillRect(0,0,W,H);
+drawOutlineText(‘HALFTIME RESULT!’,W/2,H*0.2,C.gold,C.black,24);
+drawOutlineText(’PUTTS MADE: ’+putt.score,W/2,H*0.34,C.neonGreen,C.black,20);
+drawOutlineText(’BONUS POINTS: ’+(putt.score*3),W/2,H*0.46,C.yellow,C.black,18);
+drawOutlineText(’TOTAL: ’+totalScore,W/2,H*0.57,C.white,C.black,16);
+let tapPulse=Math.floor(frameCount/20)%2;
+if(tapPulse) drawOutlineText(‘TAP TO CONTINUE’,W/2,H*0.75,C.white,C.black,15);
+}
+
+// ── AIMER UPDATE ──
+function updateAimer(){
+// Aimer ALWAYS moves — never freezes
+let dy=Math.abs(aimer.y-(H*0.83));
+let speedMult=0.8+dy/200;
+aimer.x+=aimer.vx*speedMult;
+aimer.y+=aimer.vy*speedMult;
+// Bounce in range area
+if(aimer.x<W*0.08||aimer.x>W*0.92) aimer.vx*=-1;
+if(aimer.y<H*0.35||aimer.y>H*0.75) aimer.vy*=-1;
+// Add slight random drift
+if(Math.random()<0.02) aimer.vx+=rnd(-0.3,0.3);
+if(Math.random()<0.02) aimer.vy+=rnd(-0.3,0.3);
+// Clamp speed
+let spd=Math.hypot(aimer.vx,aimer.vy);
+if(spd>3){ aimer.vx=aimer.vx/spd*3; aimer.vy=aimer.vy/spd*3; }
+if(spd<0.8){ let ratio=0.8/spd; aimer.vx*=ratio; aimer.vy*=ratio; }
+}
+
+// ── BIRD UPDATE ──
+function updateBirds(){
+if(Math.random()<0.003 && birds.length<4){
+let fromLeft=Math.random()<0.5;
+birds.push({
+x:fromLeft?-30:W+30,
+y:rnd(H*0.08,H*0.40),
+vx:fromLeft?rnd(1.5,2.5):rnd(-2.5,-1.5),
+vy:rnd(-0.3,0.3),
+offset:Math.random()*10,
+diving:false
+});
+}
+birds=birds.filter(b=>{
+if(b.diving){
+// Dive toward golfer
+b.x+=(W/2-b.x)*0.06;
+b.y+=(H*0.78-b.y)*0.06;
+if(dist(b.x,b.y,W/2,H*0.78)<20){
+// POOP!
+poopEffects.push({x:W/2+rnd(-15,15),y:H*0.80,life:2.5});
+addFloat(W/2,H*0.72,‘SPLAT! POOPED ON!’,’#ccbb22’,16);
+return false;
+}
+return true;
+}
+b.x+=b.vx; b.y+=b.vy;
+return b.x>-50&&b.x<W+50;
+});
+// Update poop effects
+poopEffects=poopEffects.filter(p=>{ p.life-=0.02; return p.life>0; });
+}
+
+// ── FOX UPDATE ──
+function updateFox(){
+if(!foxOnRange){
+if(Math.random()<0.0008){
+let fromLeft=Math.random()<0.5;
+foxOnRange={
+x:fromLeft?-40:W+40,
+y:H*0.72+rnd(-20,20),
+vx:fromLeft?2.2:-2.2,
+hasBall:false, ballCount:0,
+state:‘running’, hit:false
+};
+}
+return;
+}
+if(foxOnRange.state===‘running’){
+foxOnRange.x+=foxOnRange.vx;
+// Grab stray balls while running
+if(balls.length>0){
+balls=balls.filter(b=>{
+if(dist(foxOnRange.x,foxOnRange.y,b.x,b.y)<40){
+foxOnRange.hasBall=true;
+foxOnRange.ballCount=(foxOnRange.ballCount||0)+1;
+return false;
+}
+return true;
+});
+}
+// Exit screen — if carrying balls, return them to player
+if(foxOnRange.x<-60||foxOnRange.x>W+60){
+if(foxOnRange.ballCount>0){
+ballsLeft+=foxOnRange.ballCount;
+addFloat(W/2,H*0.78,‘FOX RETURNED ‘+foxOnRange.ballCount+’ BALL’+(foxOnRange.ballCount>1?‘S’:’’)+’!’,C.foxOrange,15);
+}
+foxOnRange=null;
+}
+} else if(foxOnRange.state===‘hit’){
+// Fox was hit — collects ALL balls and runs back fast
+foxOnRange.vx = foxOnRange.x < W/2 ? -4 : 4;
+foxOnRange.x+=foxOnRange.vx;
+balls=[];  // scoop everything
+if(foxOnRange.x<-80||foxOnRange.x>W+80){
+ballsLeft+=foxOnRange.ballCount;
+addFloat(W/2,H*0.78,‘FOX COLLECTED ALL BALLS!’,C.foxOrange,14);
+foxOnRange=null;
+}
+}
+}
+
+// ── FROG UPDATE ──
+function updateFrog(){
+if(!frogOnRange){
+if(Math.random()<0.003){
+let t=TARGETS[Math.floor(Math.random()*TARGETS.length)];
+let fromLeft=Math.random()<0.5;
+frogOnRange={
+destX:t.x+rnd(-15,15),
+destY:t.y+rnd(-8,8),
+x:fromLeft?-20:W+20,
+y:t.y+rnd(-10,10),
+vx:0,vy:0,
+hopPhase:0, // 0=hopping in, 1=idle at target
+hopT:0,hopTimer:0,
+life:350+Math.random()*200,
+arriving:true
+};
+}
+return;
+}
+frogOnRange.life–;
+if(frogOnRange.life<=0){ frogOnRange=null; return; }
+
+if(frogOnRange.arriving){
+// Hop toward destination in discrete jumps
+frogOnRange.hopTimer–;
+if(frogOnRange.hopTimer<=0){
+frogOnRange.hopT=1.0;
+frogOnRange.hopTimer=22+Math.random()*10;
+// step closer
+let dx=frogOnRange.destX-frogOnRange.x;
+let dy=frogOnRange.destY-frogOnRange.y;
+let stepLen=Math.min(Math.hypot(dx,dy), 30+Math.random()*20);
+let ang=Math.atan2(dy,dx);
+frogOnRange.prevX=frogOnRange.x;
+frogOnRange.prevY=frogOnRange.y;
+frogOnRange.x+=Math.cos(ang)*stepLen;
+frogOnRange.y+=Math.sin(ang)*stepLen;
+if(Math.hypot(frogOnRange.destX-frogOnRange.x, frogOnRange.destY-frogOnRange.y)<20){
+frogOnRange.arriving=false;
+}
+}
+if(frogOnRange.hopT>0) frogOnRange.hopT=Math.max(0,frogOnRange.hopT-0.08);
+} else {
+// Idle at target: small random hops
+frogOnRange.hopTimer–;
+if(frogOnRange.hopTimer<=0){
+frogOnRange.hopT=1.0;
+frogOnRange.hopTimer=45+Math.random()*40;
+frogOnRange.x+=rnd(-12,12);
+frogOnRange.y+=rnd(-6,6);
+frogOnRange.x=clamp(frogOnRange.x,W*0.1,W*0.9);
+frogOnRange.y=clamp(frogOnRange.y,H*0.38,H*0.76);
+}
+if(frogOnRange.hopT>0) frogOnRange.hopT=Math.max(0,frogOnRange.hopT-0.1);
+}
+}
+
+// ── CART UPDATE ──
+function updateCart(){
+if(!cartAnim.active){
+if(balls.length>5 && Math.random()<0.002){
+cartAnim.active=true;
+cartAnim.dir=Math.random()<0.5?1:-1;
+cartAnim.x=cartAnim.dir>0?-60:W+60;
+cartAnim.y=H*0.68+rnd(-20,20);
+}
+return;
+}
+cartAnim.x+=cartAnim.dir*2.5;
+// Scoop up balls nearby
+balls=balls.filter(b=>{
+if(dist(cartAnim.x,cartAnim.y,b.x,b.y)<50) return false;
+return true;
+});
+if(cartAnim.x<-80||cartAnim.x>W+80){
+cartAnim.active=false;
+}
+}
+
+// ── NPC UPDATE ──
+function updateNPCs(){
+[npcLeft,npcRight].forEach(npc=>{
+if(!npc) return;
+npc.swingTimer–;
+if(npc.swingTimer<=0 && !npc.swinging){
+npc.swinging=true;
+npc.swingT=0;
+npc.swingTimer=90+Math.random()*180;
+}
+if(npc.swinging){
+npc.swingT+=0.022;
+if(npc.swingT>=1){
+npc.swinging=false;
+npc.swingT=0;
+// Cheer reaction sometimes
+if(Math.random()<0.15){
+addFloat(npc.x,npc.y-40,[‘Nice shot!’,‘Great swing!’,‘Yes!’,‘Fore!’][Math.floor(Math.random()*4)],C.white,11);
+}
+}
+}
+});
+}
+
+// ── SWING MECHANIC ──
+let aimerSnapshot = {x:0, y:0}; // locked at tap moment
+
+function doSwing(){
+if(ballsLeft<=0) return;
+ballsLeft–;
+launchBall();
+swingState=‘windup’;
+swingT=0;
+}
+
+function updateSwing(){
+if(swingState===‘idle’) return;
+swingT+=0.07; // faster visual animation
+if(swingState===‘windup’ && swingT>=1){
+swingState=‘swing’;
+swingT=0;
+// ball already launched — nothing to do here
+} else if(swingState===‘swing’ && swingT>=1){
+swingState=‘follow’;
+swingT=0;
+} else if(swingState===‘follow’ && swingT>=1){
+swingState=‘idle’;
+swingT=0;
+}
+}
+
+let roundStartScore=0;
+function startRound(){
+ballsLeft=ballsPerRound[round-1];
+roundTimeLeft=30;
+roundStartScore=totalScore;
+roundScore=0;
+balls=[];
+birds=[];
+frogOnRange=null;
+foxOnRange=null;
+swingState=‘idle’;
+ballFlights=[];
+state=‘playing’;
+aimer.x=W/2; aimer.y=H*0.50;
+aimer.vx=1.2; aimer.vy=0.8;
+// Pick NPCs
+let pool=[…npcTypes];
+let shuffled=pool.sort(()=>Math.random()-0.5);
+npcLeft=makeNPC(shuffled[0],‘left’);
+npcRight=makeNPC(shuffled[1],‘right’);
+}
+
+function endRound(){
+roundScore=totalScore-roundStartScore;
+state=‘roundend’;
+}
+
+function onGameOver(){
+// Save local high score
+if(totalScore>localHighScore){
+localHighScore=totalScore;
+localStorage.setItem(‘driverz_hs’, totalScore);
+}
+// Submit to dreamlo
+if(!scoreSubmitted && playerName.trim()){
+submitScore(playerName.trim()||‘ANON’, totalScore);
+scoreSubmitted=true;
+}
+// Refresh leaderboard
+fetchLeaderboard();
+state=‘gameover’;
+}
+
+function launchBall(){
+let tx=aimer.x, ty=aimer.y;
+let hit=null;
+let minD=999;
+
+// Check bird first — +10 points and poop!
+let birdHit=birds.find(b=>dist(tx,ty,b.x,b.y)<35);
+if(birdHit){
+totalScore+=10;
+ballFlights.push({tx:birdHit.x,ty:birdHit.y,t:0,score:10,hit:‘bird’,birdRef:birdHit});
+addFloat(birdHit.x,birdHit.y-15,’+10 BIRDIE!’,C.orange,16);
+// Bird dives toward golfer and poops
+birdHit.diving=true;
+birdHit.diveTarget={x:W/2,y:H*0.82};
+return;
+}
+
+// Check fox — hit fox to trigger ball collection
+if(foxOnRange && dist(tx,ty,foxOnRange.x,foxOnRange.y)<45){
+foxOnRange.state=‘hit’;
+foxOnRange.ballCount=balls.length;
+addFloat(foxOnRange.x,foxOnRange.y-20,‘FOX HIT! COLLECTING BALLS!’,C.foxOrange,13);
+ballFlights.push({tx:foxOnRange.x,ty:foxOnRange.y,t:0,score:0,hit:‘fox_hit’});
+return;
+}
+
+// Check frog — hit frog = double points on next target
+if(frogOnRange && dist(tx,ty,frogOnRange.x,frogOnRange.y)<38){
+// Find nearest target to frog and score double
+let nearT=null, nearD=999;
+TARGETS.forEach(t=>{
+let d=dist(frogOnRange.x,frogOnRange.y,t.x,t.y);
+if(d<nearD){nearD=d;nearT=t;}
+});
+let pts=(nearT?nearT.pts:1)*2;
+totalScore+=pts;
+addFloat(frogOnRange.x,frogOnRange.y-20,‘FROG HIT! x2 = +’+pts,C.gold,18);
+ballFlights.push({tx:frogOnRange.x,ty:frogOnRange.y,t:0,score:0,hit:‘frog_hit’});
+frogOnRange=null;
+return;
+}
+
+TARGETS.forEach(t=>{
+let d=dist(tx,ty,t.x,t.y);
+if(d<minD){ minD=d; hit=t; }
+});
+
+let scored=hit && minD<(hit.r+38);
+if(scored){
+ballFlights.push({tx:hit.x,ty:hit.y,t:0,score:hit.pts,hit:‘target’,color:hit.color});
+} else {
+// Miss — ball lands, but if it would go past back fence, bounce it back
+let landX=tx+rnd(-20,20);
+let landY=ty+rnd(-10,10);
+landX=clamp(landX,W*0.08,W*0.92);
+// If aimed at top area (near back fence), bounce back to mid-range
+if(landY<H*0.50) landY=H*0.52+rnd(0,H*0.1);
+landY=clamp(landY,H*0.48,H*0.78);
+ballFlights.push({tx:landX,ty:landY,t:0,score:0,hit:‘miss’});
+}
+}
+
+function updateBallFlight(){
+ballFlights = ballFlights.filter(b=>{
+b.t+=0.032;
+if(b.t>=1){
+if(b.hit===‘target’){
+totalScore+=b.score;
+addFloat(b.tx,b.ty-20,’+’+b.score+’!’,b.color||C.gold,20);
+if(b.score>=3 && Math.random()<0.4){
+let npc=Math.random()<0.5?npcLeft:npcRight;
+if(npc) addFloat(npc.x,npc.y-40,‘Great shot!’,C.white,11);
+}
+} else if(b.hit===‘miss’){
+balls.push({x:b.tx,y:b.ty});
+}
+// bird/fox_hit/frog_hit handled at launch time
+return false;
+}
+return true;
+});
+}
+
+// ── FLOAT TEXT UPDATE ──
+function updateFloatTexts(){
+floatTexts=floatTexts.filter(f=>{
+f.y+=f.vy;
+f.life-=0.025;
+return f.life>0;
+});
+}
+
+// ── MAIN GAME LOOP ──
+let lastTime=performance.now();
+function loop(now){
+requestAnimationFrame(loop);
+let dt=Math.min((now-lastTime)/1000,0.05);
+lastTime=now;
+frameCount++;
+
+ctx.clearRect(0,0,W,H);
+
+if(state===‘title’){
+drawTitle();
+} else if(state===‘pregame’){
+drawRange();
+drawTargets();
+drawGolfer(W/2,H*0.83,‘address’,‘address’);
+drawRoundIntro();
+} else if(state===‘playing’){
+// Round timer
+roundTimeLeft=Math.max(0,roundTimeLeft-dt);
+if(roundTimeLeft<=0 && state===‘playing’){
+endRound();
+}
+updateAimer();
+updateBirds();
+updateFox();
+updateFrog();
+updateCart();
+updateNPCs();
+updateSwing();
+updateBallFlight();
+updateFloatTexts();
+
+```
+drawRange();
+drawTargets();
+drawRangeBalls();
+drawBirds();
+drawFox();
+drawFrog();
+drawCart();
+drawNPC(npcLeft);
+drawNPC(npcRight);
+
+// Draw golfer with swing animation
+let sp='address';
+if(swingState==='windup') sp='windup';
+else if(swingState==='swing'||swingState==='follow') sp='swing';
+drawGolfer(W/2,H*0.83,swingT,sp);
+
+drawBallFlight();
+drawAimer();
+// Poop splats on golfer
+poopEffects.forEach(p=>{
+  ctx.globalAlpha=Math.min(1,p.life)*0.9;
+  ctx.fillStyle='#ccbb22';
+  ctx.beginPath(); ctx.ellipse(px(p.x),py(p.y),10,6,0.3,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#aaa900';
+  ctx.beginPath(); ctx.ellipse(px(p.x+4),py(p.y-3),5,3,0.5,0,Math.PI*2); ctx.fill();
+  ctx.globalAlpha=1;
+});
+drawHUD();
+drawFloatTexts();
+
+// Balls left warning
+if(ballsLeft<=5 && ballsLeft>0){
+  let wp=Math.floor(frameCount/15)%2;
+  if(wp) drawOutlineText('⚠️ '+ballsLeft+' BALLS LEFT!',W/2,H*0.55,C.red,C.black,16);
+}
+```
+
+} else if(state===‘roundend’){
+drawRange();
+drawTargets();
+drawRoundEnd();
+} else if(state===‘halftime_intro’){
+drawHalftimeIntro();
+} else if(state===‘halftime’){
+let ht=Math.min(dt,0.05);
+updateHalftime(ht);
+updateFloatTexts();
+drawHalftimeGame();
+} else if(state===‘halftime_result’){
+drawHalftimeResult();
+} else if(state===‘gameover’){
+drawGameOver();
+}
+}
+
+// ── INPUT ──
+canvas.addEventListener(‘touchstart’, handleTap, {passive:false});
+canvas.addEventListener(‘mousedown’, handleTap);
+
+function handleTap(e){
+e.preventDefault();
+let now=performance.now();
+if(now-lastTap<60) return;
+lastTap=now;
+
+let clientX, clientY;
+if(e.touches && e.touches.length>0){ clientX=e.touches[0].clientX; clientY=e.touches[0].clientY; }
+else if(e.changedTouches && e.changedTouches.length>0){ clientX=e.changedTouches[0].clientX; clientY=e.changedTouches[0].clientY; }
+else { clientX=e.clientX; clientY=e.clientY; }
+
+if(state===‘title’){
+let rect=canvas.getBoundingClientRect();
+let cx=(clientX-rect.left)*(W/rect.width);
+let cy=(clientY-rect.top)*(H/rect.height);
+// Check if tapping name box
+let boxX=W*0.38, boxY=H*0.325, boxW=W*0.52, boxH=32;
+if(cx>=boxX&&cx<=boxX+boxW&&cy>=boxY&&cy<=boxY+boxH){
+nameInputActive=true;
+nameInput.value = playerName;
+nameInput.style.pointerEvents=‘auto’;
+nameInput.focus();
+nameInput.style.pointerEvents=‘none’;
+return;
+}
+// Anywhere else = start game
+nameInputActive=false;
+round=1; totalScore=0; roundScore=0; roundStartScore=0;
+state=‘pregame’;
+} else if(state===‘pregame’){
+startRound();
+} else if(state===‘playing’){
+doSwing();
+} else if(state===‘roundend’){
+round++;
+if(round===3){
+// After round 2 => halftime
+state=‘halftime_intro’;
+} else if(round>4){
+state=‘gameover’;
+} else {
+state=‘pregame’;
+}
+} else if(state===‘halftime_intro’){
+initHalftime();
+state=‘halftime’;
+} else if(state===‘halftime’){
+// swipe handled separately below
+} else if(state===‘halftime_result’){
+round=3; // continue to round 3
+state=‘pregame’;
+} else if(state===‘gameover’){
+round=1; totalScore=0; roundScore=0; roundStartScore=0;
+state=‘title’;
+}
+}
+
+// After round 2 we go halftime, then rounds 3 and 4
+
+// ── SWIPE FOR HALFTIME PUTTING ──
+canvas.addEventListener(‘touchstart’, e=>{
+if(state!==‘halftime’) return;
+let t=e.touches[0];
+putt.touchStartX=t.clientX;
+putt.touchStartY=t.clientY;
+putt.touchStartTime=performance.now();
+},{passive:true});
+
+canvas.addEventListener(‘touchend’, e=>{
+if(state!==‘halftime’) return;
+if(putt.touchStartY===null) return;
+let t=e.changedTouches[0];
+let dx=t.clientX-putt.touchStartX;
+let dy=t.clientY-putt.touchStartY;
+let rect=canvas.getBoundingClientRect();
+let fromLowerHalf=(putt.touchStartY-rect.top)/rect.height>0.55;
+if(fromLowerHalf && Math.hypot(dx,dy)>10){
+doSwipeputt(Math.atan2(dy,dx), Math.hypot(dx,dy));
+}
+putt.touchStartY=null;
+},{passive:true});
+
+// Mouse swipe for desktop testing
+let mouseDown=false, msx=0, msy=0;
+canvas.addEventListener(‘mousedown’, e=>{
+if(state!==‘halftime’) return;
+mouseDown=true; msx=e.clientX; msy=e.clientY;
+});
+canvas.addEventListener(‘mouseup’, e=>{
+if(state!==‘halftime’||!mouseDown) return;
+mouseDown=false;
+let dx=e.clientX-msx, dy=e.clientY-msy;
+let rect=canvas.getBoundingClientRect();
+let fromLowerHalf=(msy-rect.top)/rect.height>0.55;
+if(fromLowerHalf && Math.hypot(dx,dy)>10){
+doSwipeputt(Math.atan2(dy,dx), Math.hypot(dx,dy));
+}
+});
+
+requestAnimationFrame(loop);
+
+</script>
+</body>
+</html>
