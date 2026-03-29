@@ -1289,7 +1289,6 @@ if(b.x>W-12){b.x=W-12;b.vx=-Math.abs(b.vx);}
 if(b.y<H*0.09){b.y=H*0.09;b.vy=Math.abs(b.vy);}
 if(b.y>H*0.93){b.y=H*0.93;b.vy=-Math.abs(b.vy);}
 
-```
 // ── Check critter collisions
 putt.critters.forEach(cr=>{
   if(cr.hit) return;
@@ -1324,7 +1323,6 @@ if(putt.holePhase!==3){
 let spd=Math.hypot(b.vx,b.vy);
 if(spd<0.5){ putt.balls.push({x:b.x,y:b.y}); return false; }
 return true;
-```
 
 });
 
@@ -1434,7 +1432,6 @@ if(cr.hit){ ctx.globalAlpha=0.3; }
 ctx.save();
 ctx.translate(px(cr.x),py(cr.y));
 
-```
 if(cr.type==='frog'){
   // Proper pixel frog
   let bop=Math.abs(Math.sin(frameCount*0.18+cr.x))*5;
@@ -1557,7 +1554,6 @@ ctx.globalAlpha=1;
 let penLabels={frog:'-1',bunny:'-2',gator:'-3'};
 let penCols={frog:C.frogGreen,bunny:'#ff88aa',gator:'#88ff44'};
 drawText(penLabels[cr.type],cr.x,cr.y+cr.r+9,penCols[cr.type],9);
-```
 
 });
 
@@ -2029,7 +2025,6 @@ updateSwing();
 updateBallFlight();
 updateFloatTexts();
 
-```
 drawRange();
 drawTargets();
 drawRangeBalls();
@@ -2065,7 +2060,6 @@ if(ballsLeft>0 && ballsLeft<=5){
   let wp=Math.floor(frameCount/15)%2;
   if(wp) drawOutlineText('!! '+ballsLeft+' BALLS LEFT!',W/2,H*0.55,C.red,C.black,16);
 }
-```
 
 } else if(state===‘roundend’){
 drawRange();
