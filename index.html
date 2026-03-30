@@ -1178,21 +1178,41 @@ let rank=totalScore>200?'PRO GOLFER':totalScore>120?'CLUB PLAYER':totalScore>60?
 drawOutlineText(rank,W/2,H*0.37,C.neonGreen,C.black,13);
 
 // Leaderboard
-drawLeaderboard(W*0.04, H*0.42, W*0.92, H*0.34, 'LEADERBOARD');
+drawLeaderboard(W*0.04, H*0.42, W*0.92, H*0.32, 'LEADERBOARD');
+
+// Save to leaderboard button
+let canSave = totalScore>0 && playerName.trim().length>0;
+if(scoreSubmitted){
+ctx.fillStyle='#003a00'; ctx.strokeStyle=C.neonGreen; ctx.lineWidth=2;
+ctx.fillRect(W*0.06,H*0.755,W*0.88,38);
+ctx.strokeRect(W*0.06,H*0.755,W*0.88,38);
+drawOutlineText('SAVED TO LEADERBOARD!',W/2,H*0.755+19,C.neonGreen,C.black,13);
+} else if(canSave){
+let sp=Math.floor(frameCount/20)%2;
+ctx.fillStyle='#002244'; ctx.strokeStyle=C.gold; ctx.lineWidth=2;
+ctx.fillRect(W*0.06,H*0.755,W*0.88,38);
+ctx.strokeRect(W*0.06,H*0.755,W*0.88,38);
+drawOutlineText('SAVE TO LEADERBOARD',W/2,H*0.755+19,sp?C.gold:C.white,C.black,13);
+} else {
+ctx.fillStyle='#222'; ctx.strokeStyle=C.gray; ctx.lineWidth=2;
+ctx.fillRect(W*0.06,H*0.755,W*0.88,38);
+ctx.strokeRect(W*0.06,H*0.755,W*0.88,38);
+drawOutlineText(playerName.trim()?'SCORE TOO LOW':'ENTER NAME TO SAVE',W/2,H*0.755+19,C.gray,C.black,12);
+}
 
 // SMS Challenge button
 ctx.fillStyle='#003a00';
 ctx.strokeStyle=C.neonGreen; ctx.lineWidth=2;
-ctx.fillRect(W*0.06,H*0.785,W*0.88,40);
-ctx.strokeRect(W*0.06,H*0.785,W*0.88,40);
-drawOutlineText('CHALLENGE A FRIEND  (SMS)',W/2,H*0.785+20,C.neonGreen,C.black,13);
+ctx.fillRect(W*0.06,H*0.805,W*0.88,38);
+ctx.strokeRect(W*0.06,H*0.805,W*0.88,38);
+drawOutlineText('CHALLENGE A FRIEND  (SMS)',W/2,H*0.805+19,C.neonGreen,C.black,13);
 
 // Play again
 let tapPulse=Math.floor(frameCount/25)%2;
-if(tapPulse) drawOutlineText('TAP ANYWHERE TO PLAY AGAIN',W/2,H*0.915,C.white,C.black,12);
-else drawOutlineText('TAP ANYWHERE TO PLAY AGAIN',W/2,H*0.915,C.gold,C.black,12);
+if(tapPulse) drawOutlineText('TAP ANYWHERE TO PLAY AGAIN',W/2,H*0.905,C.white,C.black,12);
+else drawOutlineText('TAP ANYWHERE TO PLAY AGAIN',W/2,H*0.905,C.gold,C.black,12);
 
-drawOutlineText('LOCAL BEST: '+localHighScore,W/2,H*0.96,C.gray,C.black,10);
+drawOutlineText('LOCAL BEST: '+localHighScore,W/2,H*0.955,C.gray,C.black,10);
 }
 
 // ── HALFTIME INTRO ──
@@ -1892,11 +1912,6 @@ if(isNewHighScore){
 localHighScore=totalScore;
 localStorage.setItem('driverz_hs', totalScore);
 }
-// Submit to dreamlo
-if(!scoreSubmitted && playerName.trim()){
-submitScore(playerName.trim()||'ANON', totalScore);
-scoreSubmitted=true;
-}
 // Refresh leaderboard
 fetchLeaderboard();
 state='gameover';
@@ -2139,8 +2154,17 @@ state='pregame';
 let rect=canvas.getBoundingClientRect();
 let cx=(clientX-rect.left)*(W/rect.width);
 let cy=(clientY-rect.top)*(H/rect.height);
+// Save to leaderboard button
+if(cx>=W*0.06&&cx<=W*0.94&&cy>=H*0.755&&cy<=H*0.755+38){
+if(!scoreSubmitted && totalScore>0 && playerName.trim()){
+submitScore(playerName.trim(), totalScore);
+scoreSubmitted=true;
+fetchLeaderboard();
+}
+return;
+}
 // SMS challenge button
-if(cx>=W*0.06&&cx<=W*0.94&&cy>=H*0.785&&cy<=H*0.785+40){
+if(cx>=W*0.06&&cx<=W*0.94&&cy>=H*0.805&&cy<=H*0.805+38){
 sendSMSChallenge();
 return;
 }
