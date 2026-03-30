@@ -71,9 +71,16 @@ let leaderboardStatus = 'idle'; // idle, loading, done, error
 let scoreSubmitted = false;
 
 function submitScore(name, score){
+saveStatus='saving';
 let url = DREAMLO_URL + DREAMLO_PRIVATE + '/add/' +
 encodeURIComponent(name) + '/' + score;
-fetch(url).catch(()=>{}); // fire and forget
+fetch(url)
+.then(()=>{
+saveStatus='saved';
+scoreSubmitted=true;
+setTimeout(fetchLeaderboard, 1500); // wait for dreamlo to process
+})
+.catch(()=>{ saveStatus='error'; });
 }
 
 function fetchLeaderboard(){
@@ -135,6 +142,8 @@ let state = 'title'; // title, pregame, playing, halftime_intro, halftime, halft
 let playerName = '';
 let nameInputActive = false; // is name box focused
 let isNewHighScore = false;
+let nameAlertTimer = 0; // >0 shows "enter name" popup
+let saveStatus = 'idle'; // idle, saving, saved, error
 let poopEffects = [];
 
 // Title screen demo animation
@@ -1126,6 +1135,22 @@ drawOutlineText('4 ROUNDS · HALFTIME BONUS · CHAOS HAZARDS',W/2,H*0.945,C.gray
 
 // Leaderboard panel bottom-right of title
 drawLeaderboard(W*0.02, H*0.385, W*0.34, H*0.38, 'TOP SCORES');
+
+// Name required popup
+if(nameAlertTimer>0){
+nameAlertTimer--;
+let fade=Math.min(1,nameAlertTimer/10);
+ctx.globalAlpha=fade*0.92;
+ctx.fillStyle='#000a00';
+ctx.strokeStyle=C.red; ctx.lineWidth=3;
+let pw=W*0.76, ph=72, px2=(W-pw)/2, py2=H*0.44;
+ctx.fillRect(px2,py2,pw,ph);
+ctx.strokeRect(px2,py2,pw,ph);
+ctx.globalAlpha=fade;
+drawOutlineText('ENTER YOUR NAME',W/2,py2+22,C.red,C.black,15);
+drawOutlineText('for a tee time!',W/2,py2+46,C.yellow,C.black,13);
+ctx.globalAlpha=1;
+}
 }
 
 // ── ROUND INTRO ──
@@ -1181,12 +1206,22 @@ drawOutlineText(rank,W/2,H*0.37,C.neonGreen,C.black,13);
 drawLeaderboard(W*0.04, H*0.42, W*0.92, H*0.32, 'LEADERBOARD');
 
 // Save to leaderboard button
-let canSave = totalScore>0 && playerName.trim().length>0;
-if(scoreSubmitted){
+let canSave = totalScore>0 && playerName.trim().length>0 && !scoreSubmitted && saveStatus!=='saving';
+if(saveStatus==='saved'||scoreSubmitted){
 ctx.fillStyle='#003a00'; ctx.strokeStyle=C.neonGreen; ctx.lineWidth=2;
 ctx.fillRect(W*0.06,H*0.755,W*0.88,38);
 ctx.strokeRect(W*0.06,H*0.755,W*0.88,38);
 drawOutlineText('SAVED TO LEADERBOARD!',W/2,H*0.755+19,C.neonGreen,C.black,13);
+} else if(saveStatus==='saving'){
+ctx.fillStyle='#001a33'; ctx.strokeStyle=C.gray; ctx.lineWidth=2;
+ctx.fillRect(W*0.06,H*0.755,W*0.88,38);
+ctx.strokeRect(W*0.06,H*0.755,W*0.88,38);
+drawOutlineText('SAVING...',W/2,H*0.755+19,C.gray,C.black,13);
+} else if(saveStatus==='error'){
+ctx.fillStyle='#330000'; ctx.strokeStyle=C.red; ctx.lineWidth=2;
+ctx.fillRect(W*0.06,H*0.755,W*0.88,38);
+ctx.strokeRect(W*0.06,H*0.755,W*0.88,38);
+drawOutlineText('SAVE FAILED - TAP TO RETRY',W/2,H*0.755+19,C.red,C.black,12);
 } else if(canSave){
 let sp=Math.floor(frameCount/20)%2;
 ctx.fillStyle='#002244'; ctx.strokeStyle=C.gold; ctx.lineWidth=2;
@@ -2125,8 +2160,16 @@ nameInput.focus();
 nameInput.style.pointerEvents='none';
 return;
 }
-// Anywhere else = start game
+// Anywhere else = start game (require name)
 nameInputActive=false;
+if(!playerName.trim()){
+nameAlertTimer=120;
+nameInput.value='';
+nameInput.style.pointerEvents='auto';
+nameInput.focus();
+nameInput.style.pointerEvents='none';
+return;
+}
 round=1; totalScore=0; roundScore=0; roundStartScore=0;
 state='pregame';
 } else if(state==='pregame'){
@@ -2156,10 +2199,8 @@ let cx=(clientX-rect.left)*(W/rect.width);
 let cy=(clientY-rect.top)*(H/rect.height);
 // Save to leaderboard button
 if(cx>=W*0.06&&cx<=W*0.94&&cy>=H*0.755&&cy<=H*0.755+38){
-if(!scoreSubmitted && totalScore>0 && playerName.trim()){
+if(!scoreSubmitted && saveStatus!=='saving' && saveStatus!=='saved' && totalScore>0 && playerName.trim()){
 submitScore(playerName.trim(), totalScore);
-scoreSubmitted=true;
-fetchLeaderboard();
 }
 return;
 }
@@ -2172,6 +2213,7 @@ return;
 round=1; totalScore=0; roundScore=0; roundStartScore=0;
 scoreSubmitted=false;
 isNewHighScore=false;
+saveStatus='idle';
 state='title';
 }
 }
